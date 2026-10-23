@@ -93,6 +93,23 @@
     </div>
   </div>
 
+  <!-- Online Users Modal -->
+  <div id="online-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="users" class="w-4 h-4 text-emerald-400"></i> Active Users Online
+        </h3>
+        <button id="btn-close-online-modal" type="button" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="online-users-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+        <!-- Dynamic active users populated here -->
+      </div>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="no-print bg-slate-950/80 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
@@ -106,8 +123,14 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-4">
-        <div id="sync-status" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-800 rounded-full text-xs text-slate-400">
+      <div class="flex items-center gap-3">
+        <!-- Online Users Badge -->
+        <div id="online-badge-btn" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-full text-xs text-slate-300 cursor-pointer transition" title="View online users">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="online-users-count">0 online</span>
+        </div>
+
+        <div id="sync-status" class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-800 rounded-full text-xs text-slate-400">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>Firestore Connected</span>
         </div>
@@ -128,7 +151,7 @@
   <!-- Workspace -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
     
-    <!-- Navigation Tabs -->
+    <!-- Navigation Tabs Lineup -->
     <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
       <button id="nav-tab-loans" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
         <i data-lucide="user-plus" class="w-4 h-4"></i> Loan Origination
@@ -138,6 +161,9 @@
       </button>
       <button id="nav-tab-reports" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 flex items-center gap-2">
         <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Summary Reports & Status
+      </button>
+      <button id="nav-tab-capital" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 flex items-center gap-2">
+        <i data-lucide="landmark" class="w-4 h-4"></i> Capital & Cash Ledger
       </button>
     </div>
 
@@ -209,8 +235,8 @@
 
           <div id="card-summary-pending" class="bg-amber-950/30 border border-amber-800/50 hover:border-amber-500 rounded-xl p-3 cursor-pointer transition space-y-1">
             <div class="flex items-center justify-between text-amber-400">
-              <span class="text-[11px] font-medium">Pending Approval</span>
-              <i data-lucide="clock" class="w-4 h-4"></i>
+              <span class="text-[11px] font-medium">Pending Approval (Admin)</span>
+              <i data-lucide="shield-alert" class="w-4 h-4"></i>
             </div>
             <p id="summary-pending-count" class="text-lg font-bold text-amber-300">0 Loans</p>
             <p id="summary-pending-principal" class="text-[10px] font-mono text-amber-400/80">Amount: ₱0.00</p>
@@ -536,6 +562,8 @@
               <option value="ALL">All (Collections & Disbursements)</option>
               <option value="COLLECTIONS">Collections Only</option>
               <option value="DISBURSEMENTS">Disbursements Only</option>
+              <option value="INTEREST_COLLECTED">Interest Collected Only (60% Sponsor / 40% Worker Split)</option>
+              <option value="REMAINING_COLLECTABLES">Remaining Principal & Interest Collectables (Outstanding Receivables)</option>
               <option value="STATUS_SUMMARY">Loan Portfolio Status Summary</option>
             </select>
           </div>
@@ -558,7 +586,7 @@
         <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
           <div class="p-3 bg-blue-500/10 text-blue-400 rounded-lg"><i data-lucide="arrow-up-right" class="w-6 h-6"></i></div>
           <div>
-            <p class="text-xs text-slate-400">Total Loans Released</p>
+            <p id="metric-title-1" class="text-xs text-slate-400">Total Loans Released</p>
             <p id="range-total-released" class="text-xl font-bold text-blue-400">₱0.00</p>
             <p id="range-count-released" class="text-[10px] text-slate-500">0 Disbursements</p>
           </div>
@@ -567,7 +595,7 @@
         <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
           <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="arrow-down-left" class="w-6 h-6"></i></div>
           <div>
-            <p class="text-xs text-slate-400">Total Collections</p>
+            <p id="metric-title-2" class="text-xs text-slate-400">Total Collections</p>
             <p id="range-total-collected" class="text-xl font-bold text-emerald-400">₱0.00</p>
             <p id="range-count-collected" class="text-[10px] text-slate-500">0 Collections</p>
           </div>
@@ -576,9 +604,9 @@
         <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
           <div class="p-3 bg-purple-500/10 text-purple-400 rounded-lg"><i data-lucide="wallet" class="w-6 h-6"></i></div>
           <div>
-            <p class="text-xs text-slate-400">Net Cash Flow</p>
+            <p id="metric-title-3" class="text-xs text-slate-400">Net Cash Flow</p>
             <p id="range-net-flow" class="text-xl font-bold text-purple-300">₱0.00</p>
-            <p class="text-[10px] text-slate-500">Collections vs Releases</p>
+            <p id="metric-subtitle-3" class="text-[10px] text-slate-500">Collections vs Releases</p>
           </div>
         </div>
       </div>
@@ -664,6 +692,123 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- TAB 4: CAPITAL & CASH RUNNING LEDGER (ACCOUNTING REPORT) -->
+    <div id="view-capital" class="hidden space-y-6">
+      
+      <!-- Capital Setup & Summary Cards -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Beginning Capital Config Form -->
+        <div class="lg:col-span-4 bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div class="pb-3 border-b border-slate-800">
+            <h2 class="font-semibold text-slate-200 flex items-center gap-2 text-sm">
+              <i data-lucide="landmark" class="w-4 h-4 text-emerald-400"></i> Initial Capital Configuration
+            </h2>
+            <p class="text-[11px] text-slate-400">Set starting capital amount and effective beginning date</p>
+          </div>
+
+          <form id="capital-form" class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Beginning Date *</label>
+              <input type="date" id="cap-start-date" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Initial Capital Amount (₱) *</label>
+              <input type="number" id="cap-start-amount" step="any" min="0" required placeholder="e.g., 500000" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+            <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition">
+              <i data-lucide="save" class="w-4 h-4"></i> Save Opening Capital
+            </button>
+          </form>
+        </div>
+
+        <!-- Live Capital Summary Cards -->
+        <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 space-y-1">
+            <div class="flex justify-between items-center text-slate-400 text-xs">
+              <span>Beginning Capital</span>
+              <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
+            </div>
+            <p id="card-cap-initial" class="text-xl font-bold text-slate-100">₱0.00</p>
+            <p id="card-cap-date" class="text-[10px] text-slate-500">Start Date: --</p>
+          </div>
+
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 space-y-1">
+            <div class="flex justify-between items-center text-slate-400 text-xs">
+              <span>Total Out vs In</span>
+              <i data-lucide="repeat" class="w-4 h-4 text-amber-400"></i>
+            </div>
+            <p id="card-cap-net-change" class="text-lg font-bold text-amber-400">Out: ₱0 / In: ₱0</p>
+            <p class="text-[10px] text-slate-500">Disbursements vs Collections</p>
+          </div>
+
+          <div class="bg-slate-950/50 border border-emerald-800/60 rounded-xl p-4 space-y-1 bg-emerald-950/20">
+            <div class="flex justify-between items-center text-emerald-400 text-xs font-semibold">
+              <span>Current Running Balance</span>
+              <i data-lucide="wallet" class="w-4 h-4"></i>
+            </div>
+            <p id="card-cap-running" class="text-2xl font-bold text-emerald-400">₱0.00</p>
+            <p class="text-[10px] text-emerald-400/80">Available Cash Capital</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Capital Ledger Date Range Filter Bar -->
+      <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <i data-lucide="calendar-range" class="w-4 h-4 text-emerald-400"></i>
+          <span class="text-xs font-semibold text-slate-200">Ledger Date Range Filter (Default: 1st of Current Month to Today)</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">Start Date</label>
+            <input type="date" id="cap-filter-start" class="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">End Date</label>
+            <input type="date" id="cap-filter-end" class="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <button id="btn-filter-capital" type="button" class="mt-4 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i> Apply Range
+          </button>
+        </div>
+      </div>
+
+      <!-- Running Capital Accounting Ledger Table -->
+      <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="font-semibold text-slate-200">Capital & Cash Flow Running Ledger</h3>
+            <p id="capital-ledger-subtitle" class="text-xs text-slate-400">Chronological audit trail for the selected date range</p>
+          </div>
+          <button id="btn-print-capital-ledger" type="button" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+            <i data-lucide="printer" class="w-4 h-4 text-emerald-400"></i> Print Capital Ledger
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+                <th class="py-2.5 px-3">Date</th>
+                <th class="py-2.5 px-3">Transaction Type</th>
+                <th class="py-2.5 px-3">Borrower / Particulars</th>
+                <th class="py-2.5 px-3">Ref No.</th>
+                <th class="py-2.5 px-3 text-right text-rose-400">Money Out (Disb)</th>
+                <th class="py-2.5 px-3 text-right text-emerald-400">Money In (Coll)</th>
+                <th class="py-2.5 px-3 text-right text-purple-300 font-bold">Running Balance</th>
+              </tr>
+            </thead>
+            <tbody id="capital-ledger-tbody" class="divide-y divide-slate-800/60 text-xs font-mono text-slate-300">
+              <tr><td colspan="7" class="py-6 text-center text-slate-500 font-sans">No capital activity recorded. Set an opening capital above.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
 
   </main>
@@ -779,15 +924,15 @@
 
       <div id="print-range-metrics-box" class="grid grid-cols-3 gap-4 text-xs text-center border-y border-gray-300 py-3">
         <div>
-          <p class="text-gray-600">Total Disbursements</p>
+          <p id="print-metric-label-1" class="text-gray-600">Total Disbursements</p>
           <p id="print-range-disb" class="text-sm font-bold">₱0.00</p>
         </div>
         <div>
-          <p class="text-gray-600">Total Collections</p>
+          <p id="print-metric-label-2" class="text-gray-600">Total Collections</p>
           <p id="print-range-coll" class="text-sm font-bold">₱0.00</p>
         </div>
         <div>
-          <p class="text-gray-600">Net Cash Flow</p>
+          <p id="print-metric-label-3" class="text-gray-600">Net Cash Flow</p>
           <p id="print-range-net" class="text-sm font-bold">₱0.00</p>
         </div>
       </div>
@@ -810,6 +955,47 @@
       </div>
     </div>
 
+    <!-- Printable View 4: Capital Running Ledger Report -->
+    <div id="print-view-capital-ledger" class="hidden space-y-6 font-sans">
+      <div class="text-center space-y-1 border-b border-black pb-3">
+        <h1 class="text-xl font-bold uppercase">CAPITAL & CASH FLOW ACCOUNTING LEDGER</h1>
+        <p class="text-xs text-gray-650">Filtered Date Range Statement</p>
+      </div>
+
+      <div class="flex justify-between text-xs border-y border-gray-300 py-2">
+        <p><strong>Period Filter:</strong> <span id="print-cap-date-range">--</span></p>
+        <p><strong>Beginning Balance:</strong> <span id="print-cap-begin-bal">₱0.00</span></p>
+        <p><strong>Ending Running Balance:</strong> <span id="print-cap-running-bal" class="font-bold">₱0.00</span></p>
+      </div>
+
+      <table class="w-full text-left border-collapse text-[10px]">
+        <thead>
+          <tr class="border-b-2 border-black font-bold">
+            <th class="py-1 px-1">Date</th>
+            <th class="py-1 px-1">Type</th>
+            <th class="py-1 px-1">Particulars / Borrower</th>
+            <th class="py-1 px-1">Ref No.</th>
+            <th class="py-1 px-1 text-right">Money Out</th>
+            <th class="py-1 px-1 text-right">Money In</th>
+            <th class="py-1 px-1 text-right">Running Balance</th>
+          </tr>
+        </thead>
+        <tbody id="print-cap-tbody" class="divide-y divide-gray-300 font-mono">
+        </tbody>
+      </table>
+
+      <div class="grid grid-cols-2 gap-12 pt-12 text-xs">
+        <div class="border-t border-black pt-2 text-center">
+          <p class="font-bold uppercase">[ Prepared By: Accountant / Officer ]</p>
+          <p class="text-[10px] text-gray-600">Accounting / Finance Signature</p>
+        </div>
+        <div class="border-t border-black pt-2 text-center">
+          <p class="font-bold uppercase">[ Approved By: Management ]</p>
+          <p class="text-[10px] text-gray-600">Authorized Signature</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Application Firebase & Logic Script -->
@@ -819,7 +1005,7 @@
       getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { 
-      getFirestore, collection, addDoc, onSnapshot, doc, query, orderBy, serverTimestamp, updateDoc, deleteDoc 
+      getFirestore, collection, addDoc, setDoc, onSnapshot, doc, query, orderBy, serverTimestamp, updateDoc, deleteDoc 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -847,31 +1033,76 @@
       // Application State
       let clients = [];
       let repayments = [];
+      let capitalConfig = { amount: 0, startDate: '' };
       let activeClient = null;
       let currentUser = null;
+      let onlineUsersStore = [];
+      let presenceInterval = null;
 
       const formatPHP = (val) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val || 0);
 
-      // DOM Navigation Tabs
+      // Default Date helpers for Capital Ledger (1st of month to today)
+      const now = new Date();
+      const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const today = now.toISOString().split('T')[0];
+
+      document.getElementById('cap-filter-start').value = firstDayOfCurrentMonth;
+      document.getElementById('cap-filter-end').value = today;
+
+      // DOM Navigation Tabs Lineup
       const navLoans = document.getElementById('nav-tab-loans');
       const navRepay = document.getElementById('nav-tab-repay');
       const navReports = document.getElementById('nav-tab-reports');
+      const navCapital = document.getElementById('nav-tab-capital');
+
       const viewLoans = document.getElementById('view-loans');
       const viewRepay = document.getElementById('view-repay');
       const viewReports = document.getElementById('view-reports');
+      const viewCapital = document.getElementById('view-capital');
 
       function switchTab(activeBtn, showView) {
-        [navLoans, navRepay, navReports].forEach(btn => {
+        [navLoans, navRepay, navReports, navCapital].forEach(btn => {
           btn.className = "px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 flex items-center gap-2";
         });
         activeBtn.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2";
-        [viewLoans, viewRepay, viewReports].forEach(v => v.classList.add('hidden'));
+        [viewLoans, viewRepay, viewReports, viewCapital].forEach(v => v.classList.add('hidden'));
         showView.classList.remove('hidden');
       }
 
       navLoans.addEventListener('click', () => switchTab(navLoans, viewLoans));
       navRepay.addEventListener('click', () => switchTab(navRepay, viewRepay));
       navReports.addEventListener('click', () => switchTab(navReports, viewReports));
+      navCapital.addEventListener('click', () => switchTab(navCapital, viewCapital));
+
+      // Online Users Modal Handling
+      const onlineBadgeBtn = document.getElementById('online-badge-btn');
+      const onlineModal = document.getElementById('online-modal');
+      const btnCloseOnlineModal = document.getElementById('btn-close-online-modal');
+      const onlineUsersList = document.getElementById('online-users-list');
+
+      onlineBadgeBtn.addEventListener('click', () => {
+        onlineUsersList.innerHTML = '';
+        if (onlineUsersStore.length === 0) {
+          onlineUsersList.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">No other users online.</p>';
+        } else {
+          onlineUsersStore.forEach(u => {
+            const div = document.createElement('div');
+            div.className = "flex items-center justify-between p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs";
+            div.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="font-semibold text-slate-200">${u.name}</span>
+              </div>
+              <span class="text-[10px] text-slate-400">${u.email}</span>
+            `;
+            onlineUsersList.appendChild(div);
+          });
+        }
+        onlineModal.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      });
+
+      btnCloseOnlineModal.addEventListener('click', () => onlineModal.classList.add('hidden'));
 
       // Tab Controls within Loan Origination View
       const tabBtnSchedule = document.getElementById('tab-btn-schedule');
@@ -956,7 +1187,6 @@
       const btnClearForm = document.getElementById('btn-clear-form');
       const scheduleTbody = document.getElementById('schedule-tbody');
 
-      const today = new Date().toISOString().split('T')[0];
       disbursementDate.value = today;
       const defaultFirstPay = new Date();
       defaultFirstPay.setDate(defaultFirstPay.getDate() + 15);
@@ -965,6 +1195,7 @@
       document.getElementById('range-start-date').value = today;
       document.getElementById('range-end-date').value = today;
       document.getElementById('repay-date').value = today;
+      document.getElementById('cap-start-date').value = today;
 
       btnClearForm.addEventListener('click', () => {
         loanForm.reset();
@@ -1085,7 +1316,7 @@
         i.addEventListener('change', recalculate);
       });
 
-      // Calculate Client Balance, Schedule Compliance & Overdue Status (Excluding voided payments from balance reduction)
+      // Calculate Client Balance, Schedule Compliance & Overdue Status
       function getClientBalanceInfo(client) {
         const periods = client.term * 2;
         const totalInterest = client.principal * 0.0125 * periods;
@@ -1125,7 +1356,7 @@
           }
         }
 
-        return { totalPayable, totalPaid, currentBalance, isFullyPaid, isArrears, daysOverdue, paymentCount: clientPayments.length };
+        return { totalPayable, totalPaid, currentBalance, isFullyPaid, isArrears, daysOverdue, paymentCount: clientPayments.length, totalInterest };
       }
 
       // Update Top Status Overview Metrics Card Summary
@@ -1237,8 +1468,8 @@
           if (c.status === 'PENDING') {
             actionButtons = `
               <div class="flex items-center gap-1">
-                <button data-id="${c.id}" type="button" class="btn-approve-client px-2 py-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition" title="Approve Loan">
-                  Approve
+                <button data-id="${c.id}" type="button" class="btn-approve-client px-2 py-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition inline-flex items-center gap-1" title="Approve Loan (Admin PIN)">
+                  <i data-lucide="shield-check" class="w-3 h-3"></i> Approve
                 </button>
                 <button data-id="${c.id}" type="button" class="btn-cancel-client px-2 py-1 text-[10px] font-medium text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition" title="Cancel Loan">
                   Cancel
@@ -1303,7 +1534,7 @@
         renderRepaymentLedger(client);
       });
 
-      // Render Repayment Ledger & Statement of Account (Including Voided transparency records)
+      // Render Repayment Ledger & Statement of Account
       function renderRepaymentLedger(client) {
         const summaryBox = document.getElementById('repay-account-summary');
         const ledgerTbody = document.getElementById('repay-ledger-tbody');
@@ -1381,7 +1612,7 @@
         if (window.lucide) lucide.createIcons();
       }
 
-      // Summary & Status Report Generator
+      // Summary & Status Report Generator (60% Sponsor / 40% Worker Split & Remaining Collectables)
       function generateRangeReport() {
         const start = document.getElementById('range-start-date').value;
         const end = document.getElementById('range-end-date').value;
@@ -1392,6 +1623,11 @@
         const containerDisb = document.getElementById('container-range-disbursements');
         const containerColl = document.getElementById('container-range-collections');
         const collThead = document.getElementById('collections-thead');
+
+        const metricTitle1 = document.getElementById('metric-title-1');
+        const metricTitle2 = document.getElementById('metric-title-2');
+        const metricTitle3 = document.getElementById('metric-title-3');
+        const metricSub3 = document.getElementById('metric-subtitle-3');
 
         if (reportType === 'STATUS_SUMMARY') {
           metricsStandard.classList.add('hidden');
@@ -1464,9 +1700,206 @@
           return;
         }
 
-        // Standard & Filtered Cash Flow Report Layout (Collections Only / Disbursements Only / All)
+        if (reportType === 'REMAINING_COLLECTABLES') {
+          metricsStandard.classList.remove('hidden');
+          metricsStatusSummary.classList.add('hidden');
+          containerDisb.classList.add('hidden');
+          containerColl.classList.remove('hidden');
+          containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+          containerColl.querySelector('h3').innerHTML = `<i data-lucide="wallet" class="w-4 h-4 text-emerald-400"></i> Outstanding Collectables & Remaining Receivables Breakdown`;
+
+          metricTitle1.textContent = "Remaining Principal";
+          metricTitle2.textContent = "Remaining Interest";
+          metricTitle3.textContent = "Total Outstanding Balance";
+          metricSub3.textContent = "Total Collectable from Clients";
+
+          collThead.innerHTML = `
+            <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+              <th class="py-2 px-2">Borrower</th>
+              <th class="py-2 px-2">Status</th>
+              <th class="py-2 px-2 text-right">Original Principal</th>
+              <th class="py-2 px-2 text-right">Total Paid</th>
+              <th class="py-2 px-2 text-right text-blue-400 font-bold">Rem. Principal</th>
+              <th class="py-2 px-2 text-right text-amber-400 font-bold">Rem. Interest</th>
+              <th class="py-2 px-2 text-right text-purple-300 font-bold">Total Balance</th>
+            </tr>
+          `;
+
+          let sumRemPrincipal = 0;
+          let sumRemInterest = 0;
+          let sumTotalBalance = 0;
+          let collectableRows = [];
+
+          clients.forEach(c => {
+            if (c.status === 'CANCELLED' || c.status === 'PENDING') return;
+            const bal = getClientBalanceInfo(c);
+            if (bal.isFullyPaid) return;
+
+            const principal = c.principal;
+            const totalPayable = bal.totalPayable;
+            const totalInterest = bal.totalInterest;
+            const currentBal = bal.currentBalance;
+
+            let remPrincipal = 0;
+            let remInterest = 0;
+
+            if (totalPayable > 0 && currentBal > 0) {
+              const pRatio = principal / totalPayable;
+              const iRatio = totalInterest / totalPayable;
+              remPrincipal = currentBal * pRatio;
+              remInterest = currentBal * iRatio;
+            }
+
+            sumRemPrincipal += remPrincipal;
+            sumRemInterest += remInterest;
+            sumTotalBalance += currentBal;
+
+            collectableRows.push({
+              name: c.name,
+              status: bal.isArrears ? 'In Arrears' : 'Active (On Time)',
+              principal,
+              totalPaid: bal.totalPaid,
+              remPrincipal,
+              remInterest,
+              currentBal
+            });
+          });
+
+          document.getElementById('range-total-released').textContent = formatPHP(sumRemPrincipal);
+          document.getElementById('range-count-released').textContent = `Principal Receivable`;
+
+          document.getElementById('range-total-collected').textContent = formatPHP(sumRemInterest);
+          document.getElementById('range-count-collected').textContent = `Interest Receivable`;
+
+          document.getElementById('range-net-flow').textContent = formatPHP(sumTotalBalance);
+
+          const collTbody = document.getElementById('range-collections-tbody');
+          collTbody.innerHTML = '';
+
+          if (collectableRows.length === 0) {
+            collTbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-slate-500">No active outstanding collectables found.</td></tr>';
+          } else {
+            collectableRows.forEach(row => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td class="py-2 px-2 font-bold text-slate-200">${row.name}</td>
+                <td class="py-2 px-2 text-slate-400">${row.status}</td>
+                <td class="py-2 px-2 text-right font-mono">${formatPHP(row.principal)}</td>
+                <td class="py-2 px-2 text-right font-mono text-emerald-400">${formatPHP(row.totalPaid)}</td>
+                <td class="py-2 px-2 text-right font-mono text-blue-400 font-bold">${formatPHP(row.remPrincipal)}</td>
+                <td class="py-2 px-2 text-right font-mono text-amber-400 font-bold">${formatPHP(row.remInterest)}</td>
+                <td class="py-2 px-2 text-right font-mono text-purple-300 font-bold">${formatPHP(row.currentBal)}</td>
+              `;
+              collTbody.appendChild(tr);
+            });
+          }
+
+          if (window.lucide) lucide.createIcons();
+          return;
+        }
+
         metricsStandard.classList.remove('hidden');
         metricsStatusSummary.classList.add('hidden');
+
+        if (!start || !end) return;
+
+        const filteredDisb = (reportType === 'COLLECTIONS' || reportType === 'INTEREST_COLLECTED') ? [] : clients.filter(c => c.status === 'ACTIVE' && c.disbursementDate >= start && c.disbursementDate <= end);
+        const filteredColl = (reportType === 'DISBURSEMENTS') ? [] : repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid);
+
+        if (reportType === 'INTEREST_COLLECTED') {
+          metricTitle1.textContent = "Sponsor Share (60%)";
+          metricTitle2.textContent = "Worker Share (40%)";
+          metricTitle3.textContent = "Total Interest Collected";
+          metricSub3.textContent = "Gross Interest in Selected Period";
+
+          containerDisb.classList.add('hidden');
+          containerColl.classList.remove('hidden');
+          containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+          containerColl.querySelector('h3').innerHTML = `<i data-lucide="percent" class="w-4 h-4 text-emerald-400"></i> Interest Split, Principal & Total Collections Breakdown`;
+
+          collThead.innerHTML = `
+            <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+              <th class="py-2 px-2">Date</th>
+              <th class="py-2 px-2">Borrower</th>
+              <th class="py-2 px-2">OR Ref</th>
+              <th class="py-2 px-2 text-right text-emerald-400 font-bold">Total Paid</th>
+              <th class="py-2 px-2 text-right text-blue-300">Principal Paid</th>
+              <th class="py-2 px-2 text-right text-amber-400">Interest Collected</th>
+              <th class="py-2 px-2 text-right text-blue-400">Sponsor (60%)</th>
+              <th class="py-2 px-2 text-right text-emerald-400">Worker (40%)</th>
+              <th class="py-2 px-2 text-center">Action</th>
+            </tr>
+          `;
+
+          let totalInterestColl = 0;
+          let interestRows = [];
+
+          filteredColl.forEach(r => {
+            const c = clients.find(cl => cl.id === r.clientId);
+            if (!c) return;
+            const bal = getClientBalanceInfo(c);
+            const totalPayable = bal.totalPayable;
+            const totalInterest = bal.totalInterest;
+            const interestRatio = totalPayable > 0 ? (totalInterest / totalPayable) : 0;
+            const interestAmt = r.amount * interestRatio;
+            const principalPaid = r.amount - interestAmt;
+            
+            const sponsorShare = interestAmt * 0.60;
+            const workerShare = interestAmt * 0.40;
+
+            totalInterestColl += interestAmt;
+
+            interestRows.push({ ...r, clientName: c.name, totalPaid: r.amount, principalPaid, interestAmt, sponsorShare, workerShare });
+          });
+
+          const totalSponsor = totalInterestColl * 0.60;
+          const totalWorker = totalInterestColl * 0.40;
+
+          document.getElementById('range-total-released').textContent = formatPHP(totalSponsor);
+          document.getElementById('range-count-released').textContent = `60% Allocation`;
+
+          document.getElementById('range-total-collected').textContent = formatPHP(totalWorker);
+          document.getElementById('range-count-collected').textContent = `40% Allocation`;
+
+          document.getElementById('range-net-flow').textContent = formatPHP(totalInterestColl);
+
+          const collTbody = document.getElementById('range-collections-tbody');
+          collTbody.innerHTML = '';
+
+          if (interestRows.length === 0) {
+            collTbody.innerHTML = '<tr><td colspan="9" class="py-4 text-center text-slate-500">No collections found in date range.</td></tr>';
+          } else {
+            interestRows.forEach(r => {
+              const actionCol = `
+                <button data-id="${r.id}" data-name="${r.clientName}" type="button" class="btn-void-repay-pin px-2 py-1 text-[10px] font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition inline-flex items-center gap-1" title="Void Collection with PIN">
+                  <i data-lucide="lock" class="w-3 h-3"></i> Void
+                </button>
+              `;
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td class="py-2 px-2">${r.date}</td>
+                <td class="py-2 px-2 font-bold text-slate-200">${r.clientName}</td>
+                <td class="py-2 px-2 text-slate-400">${r.ref || 'N/A'}</td>
+                <td class="py-2 px-2 text-right font-bold text-emerald-400 font-mono">${formatPHP(r.totalPaid)}</td>
+                <td class="py-2 px-2 text-right font-mono text-blue-300">${formatPHP(r.principalPaid)}</td>
+                <td class="py-2 px-2 text-right font-mono text-amber-400 font-bold">${formatPHP(r.interestAmt)}</td>
+                <td class="py-2 px-2 text-right font-mono text-blue-400 font-bold">${formatPHP(r.sponsorShare)}</td>
+                <td class="py-2 px-2 text-right font-mono text-emerald-400 font-bold">${formatPHP(r.workerShare)}</td>
+                <td class="py-2 px-2 text-center">${actionCol}</td>
+              `;
+              collTbody.appendChild(tr);
+            });
+          }
+
+          if (window.lucide) lucide.createIcons();
+          return;
+        }
+
+        metricTitle1.textContent = "Total Loans Released";
+        metricTitle2.textContent = "Total Collections";
+        metricTitle3.textContent = "Net Cash Flow";
+        metricSub3.textContent = "Collections vs Releases";
+
         containerDisb.querySelector('h3').innerHTML = `<i data-lucide="arrow-up-right" class="w-4 h-4 text-blue-400"></i> Disbursements in Selected Period`;
         containerColl.querySelector('h3').innerHTML = `<i data-lucide="arrow-down-left" class="w-4 h-4 text-emerald-400"></i> Collections in Selected Period`;
 
@@ -1479,11 +1912,6 @@
             <th class="py-2 px-2 text-center">Action (Secure PIN)</th>
           </tr>
         `;
-
-        if (!start || !end) return;
-
-        const filteredDisb = (reportType === 'COLLECTIONS') ? [] : clients.filter(c => c.status === 'ACTIVE' && c.disbursementDate >= start && c.disbursementDate <= end);
-        const filteredColl = (reportType === 'DISBURSEMENTS') ? [] : repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid);
 
         const totalDisb = filteredDisb.reduce((acc, c) => acc + c.principal, 0);
         const totalColl = filteredColl.reduce((acc, r) => acc + r.amount, 0);
@@ -1512,7 +1940,6 @@
           containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-1";
         }
 
-        // Render Disbursements Table with Secure PIN Deletion/Cancellation (marks status to CANCELLED)
         const disbTbody = document.getElementById('range-disbursements-tbody');
         disbTbody.innerHTML = '';
         if (filteredDisb.length === 0) {
@@ -1535,7 +1962,6 @@
           });
         }
 
-        // Render Collections Table with Secure PIN Void Button (Transparent History Maintained)
         const collTbody = document.getElementById('range-collections-tbody');
         collTbody.innerHTML = '';
 
@@ -1569,6 +1995,174 @@
 
       document.getElementById('btn-filter-range').addEventListener('click', generateRangeReport);
 
+      // Capital & Cash Running Accounting Ledger Generator with Date Range & Beginning Balance Calculation
+      function renderCapitalLedger() {
+        const startAmt = parseFloat(capitalConfig.amount) || 0;
+        const configStartDate = capitalConfig.startDate || today;
+
+        document.getElementById('card-cap-initial').textContent = formatPHP(startAmt);
+        document.getElementById('card-cap-date').textContent = `Start Date: ${configStartDate}`;
+
+        const filterStart = document.getElementById('cap-filter-start').value || firstDayOfCurrentMonth;
+        const filterEnd = document.getElementById('cap-filter-end').value || today;
+
+        document.getElementById('capital-ledger-subtitle').textContent = `Chronological audit trail from ${filterStart} to ${filterEnd}`;
+
+        let rawTransactions = [];
+
+        if (configStartDate && startAmt >= 0) {
+          rawTransactions.push({
+            date: configStartDate,
+            type: 'OPENING_CAPITAL',
+            particulars: 'Beginning Capital Fund',
+            ref: 'INIT',
+            moneyOut: 0,
+            moneyIn: startAmt
+          });
+        }
+
+        clients.filter(c => c.status === 'ACTIVE').forEach(c => {
+          rawTransactions.push({
+            date: c.disbursementDate,
+            type: 'LOAN_DISBURSEMENT',
+            particulars: `Loan Release: ${c.name}`,
+            ref: 'RELEASE',
+            moneyOut: c.principal,
+            moneyIn: 0
+          });
+        });
+
+        repayments.filter(r => !r.isVoid).forEach(r => {
+          const c = clients.find(cl => cl.id === r.clientId);
+          rawTransactions.push({
+            date: r.date,
+            type: 'REPAYMENT_COLLECTION',
+            particulars: `Payment Received: ${c ? c.name : 'Unknown'}`,
+            ref: r.ref || 'COLL',
+            moneyOut: 0,
+            moneyIn: r.amount
+          });
+        });
+
+        rawTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        let computedBeginBal = 0;
+        let totalOutInRange = 0;
+        let totalInInRange = 0;
+        let rangeTransactions = [];
+
+        rawTransactions.forEach(t => {
+          if (t.date < filterStart) {
+            if (t.type === 'OPENING_CAPITAL') {
+              computedBeginBal += t.moneyIn;
+            } else {
+              computedBeginBal = computedBeginBal - t.moneyOut + t.moneyIn;
+            }
+          } else if (t.date >= filterStart && t.date <= filterEnd) {
+            rangeTransactions.push(t);
+          }
+        });
+
+        const tbody = document.getElementById('capital-ledger-tbody');
+        const printTbody = document.getElementById('print-cap-tbody');
+        tbody.innerHTML = '';
+        printTbody.innerHTML = '';
+
+        let runningBal = computedBeginBal;
+
+        const beginTr = document.createElement('tr');
+        beginTr.className = "bg-slate-900/60 font-semibold";
+        beginTr.innerHTML = `
+          <td class="py-2.5 px-3 text-slate-300">${filterStart}</td>
+          <td class="py-2.5 px-3"><span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[9px] font-bold">BEGINNING BALANCE</span></td>
+          <td class="py-2.5 px-3 text-slate-200">Opening Balance as of ${filterStart}</td>
+          <td class="py-2.5 px-3 text-slate-500">-</td>
+          <td class="py-2.5 px-3 text-right text-slate-500">-</td>
+          <td class="py-2.5 px-3 text-right text-slate-500">-</td>
+          <td class="py-2.5 px-3 text-right font-bold text-purple-300 font-mono">${formatPHP(runningBal)}</td>
+        `;
+        tbody.appendChild(beginTr);
+
+        const printBeginTr = document.createElement('tr');
+        printBeginTr.className = "font-bold";
+        printBeginTr.innerHTML = `
+          <td class="py-1 px-1">${filterStart}</td>
+          <td class="py-1 px-1">BEGINNING BALANCE</td>
+          <td class="py-1 px-1">Opening Balance as of ${filterStart}</td>
+          <td class="py-1 px-1">-</td>
+          <td class="py-1 px-1 text-right">-</td>
+          <td class="py-1 px-1 text-right">-</td>
+          <td class="py-1 px-1 text-right font-bold">${formatPHP(runningBal)}</td>
+        `;
+        printTbody.appendChild(printBeginTr);
+
+        if (rangeTransactions.length > 0) {
+          rangeTransactions.forEach(t => {
+            runningBal = runningBal - t.moneyOut + t.moneyIn;
+            totalOutInRange += t.moneyOut;
+            totalInInRange += t.moneyIn;
+
+            let typeBadge = '';
+            if (t.type === 'OPENING_CAPITAL') typeBadge = '<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[9px] font-bold">CAPITAL</span>';
+            else if (t.type === 'LOAN_DISBURSEMENT') typeBadge = '<span class="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-[9px] font-bold">DISBURSEMENT</span>';
+            else typeBadge = '<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-bold">COLLECTION</span>';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td class="py-2 px-3 text-slate-200">${t.date}</td>
+              <td class="py-2 px-3">${typeBadge}</td>
+              <td class="py-2 px-3 font-semibold text-slate-100">${t.particulars}</td>
+              <td class="py-2 px-3 text-slate-400">${t.ref}</td>
+              <td class="py-2 px-3 text-right text-rose-400">${t.moneyOut > 0 ? formatPHP(t.moneyOut) : '-'}</td>
+              <td class="py-2 px-3 text-right text-emerald-400">${t.moneyIn > 0 ? formatPHP(t.moneyIn) : '-'}</td>
+              <td class="py-2 px-3 text-right font-bold text-purple-300 font-mono">${formatPHP(runningBal)}</td>
+            `;
+            tbody.appendChild(tr);
+
+            const printTr = document.createElement('tr');
+            printTr.innerHTML = `
+              <td class="py-1 px-1">${t.date}</td>
+              <td class="py-1 px-1">${t.type}</td>
+              <td class="py-1 px-1 font-bold">${t.particulars}</td>
+              <td class="py-1 px-1">${t.ref}</td>
+              <td class="py-1 px-1 text-right">${t.moneyOut > 0 ? formatPHP(t.moneyOut) : '-'}</td>
+              <td class="py-1 px-1 text-right">${t.moneyIn > 0 ? formatPHP(t.moneyIn) : '-'}</td>
+              <td class="py-1 px-1 text-right font-bold">${formatPHP(runningBal)}</td>
+            `;
+            printTbody.appendChild(printTr);
+          });
+        }
+
+        document.getElementById('card-cap-net-change').textContent = `Out: ${formatPHP(totalOutInRange)} | In: ${formatPHP(totalInInRange)}`;
+        document.getElementById('card-cap-running').textContent = formatPHP(runningBal);
+
+        document.getElementById('print-cap-date-range').textContent = `${filterStart} to ${filterEnd}`;
+        document.getElementById('print-cap-begin-bal').textContent = formatPHP(computedBeginBal);
+        document.getElementById('print-cap-running-bal').textContent = formatPHP(runningBal);
+      }
+
+      document.getElementById('btn-filter-capital').addEventListener('click', renderCapitalLedger);
+
+      // Save Opening Capital Config to Firestore
+      document.getElementById('capital-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const startDate = document.getElementById('cap-start-date').value;
+        const amount = parseFloat(document.getElementById('cap-start-amount').value);
+
+        if (!startDate || isNaN(amount)) return;
+
+        try {
+          await setDoc(doc(db, 'settings', 'capital'), {
+            startDate,
+            amount,
+            updatedAt: serverTimestamp()
+          });
+          alert('Opening Capital successfully configured!');
+        } catch (err) {
+          alert('Error saving capital config: ' + err.message);
+        }
+      });
+
       // Event Listeners for Secure PIN Actions in Reports
       document.getElementById('range-collections-tbody').addEventListener('click', async (e) => {
         const voidBtn = e.target.closest('.btn-void-repay-pin');
@@ -1578,7 +2172,7 @@
           const repayId = voidBtn.getAttribute('data-id');
           const clientName = voidBtn.getAttribute('data-name');
           
-          const enteredPin = prompt(`Enter Secure PIN to void collection for "${clientName}":`, "");
+          const enteredPin = prompt(`Enter Admin Secure PIN to void collection for "${clientName}":`, "");
           if (enteredPin === null) return;
           
           if (enteredPin !== "1234") {
@@ -1598,7 +2192,7 @@
           const clientId = deleteClientBtn.getAttribute('data-id');
           const clientName = deleteClientBtn.getAttribute('data-name');
           
-          const enteredPin = prompt(`Enter Secure PIN to delete client record "${clientName}":`, "");
+          const enteredPin = prompt(`Enter Admin Secure PIN to delete client record "${clientName}":`, "");
           if (enteredPin === null) return;
           
           if (enteredPin !== "1234") {
@@ -1617,14 +2211,13 @@
         }
       });
 
-      // Event listener for cancelling disbursement in Disbursements Only view
       document.getElementById('range-disbursements-tbody').addEventListener('click', async (e) => {
         const cancelDisbBtn = e.target.closest('.btn-cancel-disb-pin');
         if (cancelDisbBtn) {
           const clientId = cancelDisbBtn.getAttribute('data-id');
           const clientName = cancelDisbBtn.getAttribute('data-name');
 
-          const enteredPin = prompt(`Enter Secure PIN to cancel disbursement for "${clientName}":`, "");
+          const enteredPin = prompt(`Enter Admin Secure PIN to cancel disbursement for "${clientName}":`, "");
           if (enteredPin === null) return;
 
           if (enteredPin !== "1234") {
@@ -1648,8 +2241,9 @@
         const noteSchedView = document.getElementById('print-view-note-sched');
         const stmtView = document.getElementById('print-view-statement');
         const rangeSummaryView = document.getElementById('print-view-range-summary');
+        const capitalLedgerView = document.getElementById('print-view-capital-ledger');
 
-        [noteSchedView, stmtView, rangeSummaryView].forEach(v => v.classList.add('hidden'));
+        [noteSchedView, stmtView, rangeSummaryView, capitalLedgerView].forEach(v => v.classList.add('hidden'));
         document.getElementById(viewId).classList.remove('hidden');
 
         area.classList.remove('hidden');
@@ -1659,6 +2253,7 @@
 
       document.getElementById('btn-print-note-sched').addEventListener('click', () => triggerPrint('print-view-note-sched'));
       document.getElementById('btn-print-statement').addEventListener('click', () => triggerPrint('print-view-statement'));
+      document.getElementById('btn-print-capital-ledger').addEventListener('click', () => triggerPrint('print-view-capital-ledger'));
       
       document.getElementById('btn-print-range-summary').addEventListener('click', () => {
         const start = document.getElementById('range-start-date').value;
@@ -1706,10 +2301,121 @@
               printCollTbody.appendChild(printTr);
             });
           }
+        } else if (reportType === 'REMAINING_COLLECTABLES') {
+          printTitle.textContent = "OUTSTANDING COLLECTABLES & REMAINING RECEIVABLES REPORT";
+          printDates.textContent = `As of ${new Date().toLocaleDateString('en-PH')}`;
+          printMetricsBox.classList.remove('hidden');
+          document.getElementById('print-metric-label-1').textContent = "Remaining Principal";
+          document.getElementById('print-metric-label-2').textContent = "Remaining Interest";
+          document.getElementById('print-metric-label-3').textContent = "Total Outstanding Balance";
+
+          printTableHeading.textContent = "Borrower Outstanding Receivables Breakdown";
+          printTheadTr.innerHTML = `
+            <th class="py-1 px-1">Borrower Name</th>
+            <th class="py-1 px-1">Status</th>
+            <th class="py-1 px-1 text-right">Principal</th>
+            <th class="py-1 px-1 text-right">Total Paid</th>
+            <th class="py-1 px-1 text-right">Rem. Principal</th>
+            <th class="py-1 px-1 text-right">Rem. Interest</th>
+            <th class="py-1 px-1 text-right">Total Balance</th>
+          `;
+
+          let sumRP = 0, sumRI = 0, sumTB = 0;
+          clients.forEach(c => {
+            if (c.status === 'CANCELLED' || c.status === 'PENDING') return;
+            const bal = getClientBalanceInfo(c);
+            if (bal.isFullyPaid) return;
+
+            const principal = c.principal;
+            const totalPayable = bal.totalPayable;
+            const totalInterest = bal.totalInterest;
+            const currentBal = bal.currentBalance;
+
+            let remPrincipal = 0, remInterest = 0;
+            if (totalPayable > 0 && currentBal > 0) {
+              remPrincipal = currentBal * (principal / totalPayable);
+              remInterest = currentBal * (totalInterest / totalPayable);
+            }
+
+            sumRP += remPrincipal;
+            sumRI += remInterest;
+            sumTB += currentBal;
+
+            const printTr = document.createElement('tr');
+            printTr.innerHTML = `
+              <td class="py-1 px-1 font-bold">${c.name}</td>
+              <td class="py-1 px-1">${bal.isArrears ? 'In Arrears' : 'Active'}</td>
+              <td class="py-1 px-1 text-right font-mono">${formatPHP(principal)}</td>
+              <td class="py-1 px-1 text-right font-mono">${formatPHP(bal.totalPaid)}</td>
+              <td class="py-1 px-1 text-right font-mono font-bold">${formatPHP(remPrincipal)}</td>
+              <td class="py-1 px-1 text-right font-mono font-bold">${formatPHP(remInterest)}</td>
+              <td class="py-1 px-1 text-right font-mono font-bold">${formatPHP(currentBal)}</td>
+            `;
+            printCollTbody.appendChild(printTr);
+          });
+
+          document.getElementById('print-range-disb').textContent = formatPHP(sumRP);
+          document.getElementById('print-range-coll').textContent = formatPHP(sumRI);
+          document.getElementById('print-range-net').textContent = formatPHP(sumTB);
+        } else if (reportType === 'INTEREST_COLLECTED') {
+          printTitle.textContent = "INTEREST COLLECTED REPORT & TOTAL PAID (60% SPONSOR / 40% WORKER SPLIT)";
+          printDates.textContent = `${start} to ${end}`;
+          printMetricsBox.classList.remove('hidden');
+          document.getElementById('print-metric-label-1').textContent = "Sponsor Share (60%)";
+          document.getElementById('print-metric-label-2').textContent = "Worker Share (40%)";
+          document.getElementById('print-metric-label-3').textContent = "Total Interest Collected";
+
+          printTableHeading.textContent = "Interest Collection, Principal & Total Collections Split Log";
+          printTheadTr.innerHTML = `
+            <th class="py-1 px-1">Date</th>
+            <th class="py-1 px-1">Borrower</th>
+            <th class="py-1 px-1">OR Ref</th>
+            <th class="py-1 px-1 text-right">Total Paid</th>
+            <th class="py-1 px-1 text-right">Principal Paid</th>
+            <th class="py-1 px-1 text-right">Interest Collected</th>
+            <th class="py-1 px-1 text-right">Sponsor (60%)</th>
+            <th class="py-1 px-1 text-right">Worker (40%)</th>
+          `;
+
+          const filteredColl = repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid);
+          let totalInt = 0;
+          filteredColl.forEach(r => {
+            const c = clients.find(cl => cl.id === r.clientId);
+            if (!c) return;
+            const bal = getClientBalanceInfo(c);
+            const intRatio = bal.totalPayable > 0 ? (bal.totalInterest / bal.totalPayable) : 0;
+            const intAmt = r.amount * intRatio;
+            const principalPaid = r.amount - intAmt;
+
+            const sponsor = intAmt * 0.60;
+            const worker = intAmt * 0.40;
+            totalInt += intAmt;
+
+            const printTr = document.createElement('tr');
+            printTr.innerHTML = `
+              <td class="py-1 px-1">${r.date}</td>
+              <td class="py-1 px-1">${c.name}</td>
+              <td class="py-1 px-1">${r.ref || 'N/A'}</td>
+              <td class="py-1 px-1 text-right font-bold">${formatPHP(r.amount)}</td>
+              <td class="py-1 px-1 text-right">${formatPHP(principalPaid)}</td>
+              <td class="py-1 px-1 text-right font-bold">${formatPHP(intAmt)}</td>
+              <td class="py-1 px-1 text-right">${formatPHP(sponsor)}</td>
+              <td class="py-1 px-1 text-right">${formatPHP(worker)}</td>
+            `;
+            printCollTbody.appendChild(printTr);
+          });
+
+          document.getElementById('print-range-disb').textContent = formatPHP(totalInt * 0.60);
+          document.getElementById('print-range-coll').textContent = formatPHP(totalInt * 0.40);
+          document.getElementById('print-range-net').textContent = formatPHP(totalInt);
         } else {
           printTitle.textContent = "SUMMARY TRANSACTION REPORT (" + reportType + ")";
           printDates.textContent = `${start} to ${end}`;
           printMetricsBox.classList.remove('hidden');
+          document.getElementById('print-metric-label-1').textContent = "Total Disbursements";
+          document.getElementById('print-metric-label-2').textContent = "Total Collections";
+          document.getElementById('print-metric-label-3').textContent = "Net Cash Flow";
+
           printTableHeading.textContent = "Transactions Log";
           printTheadTr.innerHTML = `
             <th class="py-1 px-1">Date</th>
@@ -1752,7 +2458,7 @@
         triggerPrint('print-view-range-summary');
       });
 
-      // Firebase Auth State Observer
+      // Firebase Auth State Observer & Presence Tracker
       onAuthStateChanged(auth, async (user) => {
         currentUser = user;
         if (user) {
@@ -1760,10 +2466,53 @@
           document.getElementById('user-display-name').textContent = user.displayName || user.email.split('@')[0];
           document.getElementById('user-display-email').textContent = user.email;
 
+          const userPresenceRef = doc(db, 'presence', user.uid);
+          const updatePresence = async () => {
+            try {
+              await setDoc(userPresenceRef, {
+                uid: user.uid,
+                name: user.displayName || user.email.split('@')[0],
+                email: user.email,
+                lastActive: serverTimestamp()
+              }, { merge: true });
+            } catch (err) {
+              console.error("Presence update error:", err);
+            }
+          };
+          updatePresence();
+          if (presenceInterval) clearInterval(presenceInterval);
+          presenceInterval = setInterval(updatePresence, 30000);
+
+          onSnapshot(collection(db, 'presence'), (snapshot) => {
+            const now = new Date().getTime();
+            const activeList = [];
+            snapshot.docs.forEach(d => {
+              const data = d.data();
+              if (data.lastActive) {
+                const activeTime = data.lastActive.toMillis ? data.lastActive.toMillis() : new Date().getTime();
+                if ((now - activeTime) < 70000) {
+                  activeList.push(data);
+                }
+              }
+            });
+            onlineUsersStore = activeList;
+            document.getElementById('online-users-count').textContent = `${activeList.length} online`;
+          });
+
+          onSnapshot(doc(db, 'settings', 'capital'), (snapshot) => {
+            if (snapshot.exists()) {
+              capitalConfig = snapshot.data();
+              document.getElementById('cap-start-date').value = capitalConfig.startDate || today;
+              document.getElementById('cap-start-amount').value = capitalConfig.amount || '';
+            }
+            renderCapitalLedger();
+          });
+
           onSnapshot(query(collection(db, 'clients'), orderBy('createdAt', 'desc')), (snapshot) => {
             clients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             renderClients();
             generateRangeReport();
+            renderCapitalLedger();
             if (document.querySelector('input[name="loan-type"]:checked').value === 'RELOAN') {
               populateExistingClientsDropdown();
             }
@@ -1777,9 +2526,11 @@
               renderRepaymentLedger(c);
             }
             generateRangeReport();
+            renderCapitalLedger();
           });
 
         } else {
+          if (presenceInterval) clearInterval(presenceInterval);
           document.getElementById('auth-overlay').classList.remove('hidden');
         }
       });
@@ -1872,31 +2623,48 @@
 
         try {
           await addDoc(collection(db, 'clients'), newClient);
-          alert('Loan application submitted for approval!');
+          alert('Loan application submitted for admin approval!');
           btnClearForm.click();
         } catch (err) {
           alert('Error: ' + err.message);
         }
       });
 
-      // Directory Action Event Listeners (Approve / Cancel)
       document.getElementById('clients-list').addEventListener('click', async (e) => {
         const approveBtn = e.target.closest('.btn-approve-client');
         const cancelBtn = e.target.closest('.btn-cancel-client');
 
         if (approveBtn) {
           const id = approveBtn.getAttribute('data-id');
-          if (confirm('Approve this loan application? The loan will become ACTIVE and appear in payment posting.')) {
+
+          const enteredPin = prompt("Enter Admin Secure PIN to approve loan application:", "");
+          if (enteredPin === null) return;
+
+          if (enteredPin !== "1234") {
+            alert("Incorrect Secure PIN. Loan approval restricted to Admin.");
+            return;
+          }
+
+          if (confirm('PIN verified. Approve and activate this loan application?')) {
             try {
               await updateDoc(doc(db, 'clients', id), { status: 'ACTIVE' });
-              alert('Loan approved and activated!');
+              alert('Loan approved and activated successfully!');
             } catch (err) {
               alert('Error approving loan: ' + err.message);
             }
           }
         } else if (cancelBtn) {
           const id = cancelBtn.getAttribute('data-id');
-          if (confirm('Cancel this pending loan application?')) {
+
+          const enteredPin = prompt("Enter Admin Secure PIN to cancel loan application:", "");
+          if (enteredPin === null) return;
+
+          if (enteredPin !== "1234") {
+            alert("Incorrect Secure PIN. Action aborted.");
+            return;
+          }
+
+          if (confirm('PIN verified. Cancel this pending loan application?')) {
             try {
               await updateDoc(doc(db, 'clients', id), { status: 'CANCELLED' });
               alert('Loan application cancelled.');
@@ -1907,7 +2675,6 @@
         }
       });
 
-      // Save Repayment Entry
       document.getElementById('repayment-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const clientId = repayClientSelect.value;

@@ -493,7 +493,7 @@
               </div>
 
               <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition">
-                <i data-lucide="check-circle" class="w-4 h-4"></i> Post & Deduct Payment
+                <i data-lucide="lock" class="w-4 h-4"></i> Post & Deduct Payment (PIN)
               </button>
             </form>
           </div>
@@ -719,7 +719,7 @@
               <h2 class="font-semibold text-slate-200 flex items-center gap-2 text-sm">
                 <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i> Record Capital Deposit (Investment)
               </h2>
-              <p class="text-[11px] text-slate-400">Add additional capital investments into the cash fund</p>
+              <p class="text-[11px] text-slate-400">Add additional capital investments into the cash fund (Secured PIN)</p>
             </div>
 
             <form id="capital-deposit-form" class="space-y-3">
@@ -742,7 +742,7 @@
                 <input type="text" id="cap-deposit-ref" placeholder="e.g., DEP-001" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
               </div>
               <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition">
-                <i data-lucide="arrow-down-circle" class="w-4 h-4"></i> Post Capital Deposit
+                <i data-lucide="lock" class="w-4 h-4"></i> Post Capital Deposit (PIN)
               </button>
             </form>
           </div>
@@ -2352,6 +2352,14 @@
 
         if (!date || isNaN(amount) || !particulars) return;
 
+        const enteredPin = prompt("Enter Admin Secure PIN to post capital deposit:", "");
+        if (enteredPin === null) return;
+
+        if (enteredPin !== "1234") {
+          alert("Incorrect Secure PIN. Action aborted.");
+          return;
+        }
+
         try {
           await addDoc(collection(db, 'capital_deposits'), {
             date,
@@ -2949,6 +2957,14 @@
         const ref = document.getElementById('repay-ref').value;
 
         if (!clientId || !amount || !date) return;
+
+        const enteredPin = prompt("Enter Admin Secure PIN to post payment:", "");
+        if (enteredPin === null) return;
+
+        if (enteredPin !== "1234") {
+          alert("Incorrect Secure PIN. Action aborted.");
+          return;
+        }
 
         try {
           await addDoc(collection(db, 'repayments'), {

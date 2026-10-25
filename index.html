@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HELPING HAND MICROFINANCE</title>
+  
+  <!-- Favicon: Helping Hand SVG Data URI -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0'/><path d='M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2'/><path d='M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8'/><path d='M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/></svg>">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- External Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+  <!-- Authentication Modal -->
+  <div id="auth-overlay" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl space-y-6">
+      <div class="text-center space-y-2">
+        <div class="inline-flex p-3 bg-emerald-500/10 text-emerald-400 rounded-xl mb-1">
+          <i data-lucide="heart-handshake" class="w-8 h-8"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-white">Helping Hand Portal</h2>
+        <p class="text-xs text-slate-400">Sign in to sync client records & payments</p>
+      </div>
+
+      <div class="space-y-4">
+        <button id="btn-google-login" type="button" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-medium flex items-center justify-center gap-3 transition">
+          <svg class="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div class="relative flex items-center justify-center">
+          <div class="border-t border-slate-800 w-full"></div>
+          <span class="bg-slate-900 px-3 text-xs text-slate-500 uppercase tracking-wider font-semibold absolute">Or Email</span>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Email Address</label>
+            <input type="email" id="auth-email" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Password</label>
+            <input type="password" id="auth-password" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="button" id="btn-login-email" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition">Sign In</button>
+            <button type="button" id="btn-signup-email" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition">Register</button>
+          </div>
+        </div>
+
+        <p id="auth-error-msg" class="text-xs text-rose-400 text-center min-h-[1rem] font-medium"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Online Users Modal -->
+  <div id="online-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="users" class="w-4 h-4 text-emerald-400"></i> Active Users Online
+        </h3>
+        <button id="btn-close-online-modal" type="button" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="online-users-list" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="no-print bg-slate-950/80 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
+          <i data-lucide="heart-handshake" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg text-white leading-tight">HELPING HAND MICROFINANCE</h1>
+          <p class="text-xs text-slate-400">2.5% Monthly Rate • Repayments & Reports</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div id="online-badge-btn" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-full text-xs text-slate-300 cursor-pointer transition" title="View online users">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="online-users-count">0 online</span>
+        </div>
+
+        <div id="sync-status" class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-900 border border-slate-800 rounded-full text-xs text-slate-400">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Firestore Connected</span>
+        </div>
+
+        <div id="user-profile" class="flex items-center gap-3 border-l border-slate-800 pl-4">
+          <div class="text-right hidden sm:block">
+            <p id="user-display-name" class="text-xs font-semibold text-slate-200">User</p>
+            <p id="user-display-email" class="text-[10px] text-slate-400">Logged in</p>
+          </div>
+          <button id="btn-logout" type="button" title="Sign Out" class="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Workspace -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
+    
+    <!-- Navigation Tabs Lineup -->
+    <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+      <button id="nav-tab-loans" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2">
+        <i data-lucide="user-plus" class="w-4 h-4"></i> Loan Origination
+      </button>
+      <button id="nav-tab-repay" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 flex items-center gap-2">
+        <i data-lucide="hand-coins" class="w-4 h-4"></i> Post Repayment & Ledger
+      </button>
+      <button id="nav-tab-reports" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 flex items-center gap-2">
+        <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Summary Reports & Status
+      </button>
+      <button id="nav-tab-capital" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 flex items-center gap-2">
+        <i data-lucide="landmark" class="w-4 h-4"></i> Capital & Cash Ledger
+      </button>
+    </div>
+
+    <!-- TAB 1: LOAN ORIGINATION & CLIENT MANAGEMENT -->
+    <div id="view-loans" class="space-y-6">
+      
+      <!-- Top Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-blue-500/10 text-blue-400 rounded-lg"><i data-lucide="banknote" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">Principal Amount</p>
+            <p id="card-principal" class="text-xl font-bold text-white">₱0.00</p>
+          </div>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="percent" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">Total Interest (2.5%/mo)</p>
+            <p id="card-interest" class="text-xl font-bold text-emerald-400">₱0.00</p>
+          </div>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg"><i data-lucide="calculator" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">Semi-Monthly Payment</p>
+            <p id="card-payment" class="text-xl font-bold text-amber-400">₱0.00</p>
+          </div>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-purple-500/10 text-purple-400 rounded-lg"><i data-lucide="receipt" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">Total Payable Amount</p>
+            <p id="card-total" class="text-xl font-bold text-purple-300">₱0.00</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- BORROWER STATUS OVERVIEW DASHBOARD -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Borrower Status Overview</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div id="card-summary-active" class="bg-emerald-950/30 border border-emerald-800/50 hover:border-emerald-500 rounded-xl p-3 cursor-pointer transition space-y-1">
+            <div class="flex items-center justify-between text-emerald-400">
+              <span class="text-[11px] font-medium">Active (On Time)</span>
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+            </div>
+            <p id="summary-active-count" class="text-lg font-bold text-emerald-300">0 Loans</p>
+            <p id="summary-active-bal" class="text-[10px] font-mono text-emerald-400/80">Bal: ₱0.00</p>
+          </div>
+
+          <div id="card-summary-arrears" class="bg-rose-950/30 border border-rose-800/50 hover:border-rose-500 rounded-xl p-3 cursor-pointer transition space-y-1">
+            <div class="flex items-center justify-between text-rose-400">
+              <span class="text-[11px] font-medium">In Arrears</span>
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+            </div>
+            <p id="summary-arrears-count" class="text-lg font-bold text-rose-300">0 Loans</p>
+            <p id="summary-arrears-bal" class="text-[10px] font-mono text-rose-400/80">Bal: ₱0.00</p>
+          </div>
+
+          <div id="card-summary-closed" class="bg-slate-900/80 border border-slate-800 hover:border-slate-600 rounded-xl p-3 cursor-pointer transition space-y-1">
+            <div class="flex items-center justify-between text-slate-300">
+              <span class="text-[11px] font-medium">Closed (Fully Paid)</span>
+              <i data-lucide="check-check" class="w-4 h-4"></i>
+            </div>
+            <p id="summary-closed-count" class="text-lg font-bold text-slate-100">0 Loans</p>
+            <p id="summary-closed-amount" class="text-[10px] font-mono text-slate-400">Paid: ₱0.00</p>
+          </div>
+
+          <div id="card-summary-pending" class="bg-amber-950/30 border border-amber-800/50 hover:border-amber-500 rounded-xl p-3 cursor-pointer transition space-y-1">
+            <div class="flex items-center justify-between text-amber-400">
+              <span class="text-[11px] font-medium">Pending Approval (Admin)</span>
+              <i data-lucide="shield-alert" class="w-4 h-4"></i>
+            </div>
+            <p id="summary-pending-count" class="text-lg font-bold text-amber-300">0 Loans</p>
+            <p id="summary-pending-principal" class="text-[10px] font-mono text-amber-400/80">Amount: ₱0.00</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Form & Client List -->
+        <div class="lg:col-span-5 space-y-6">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+                <i data-lucide="user-plus" class="w-4 h-4 text-emerald-400"></i> New Client Application
+              </h2>
+              <button id="btn-clear-form" type="button" class="text-xs text-slate-400 hover:text-slate-200 underline">Reset Form</button>
+            </div>
+
+            <form id="loan-form" class="space-y-4">
+              <div class="space-y-2">
+                <label class="block text-xs font-medium text-slate-400">Loan Type *</label>
+                <div class="flex gap-4">
+                  <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                    <input type="radio" name="loan-type" value="NEW" checked class="text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-800">
+                    New Loan
+                  </label>
+                  <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                    <input type="radio" name="loan-type" value="RELOAN" class="text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-800">
+                    Re-loan (Existing Client)
+                  </label>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Borrower Full Name *</label>
+                  <div id="container-name-input">
+                    <input type="text" id="client-name" value="" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                  </div>
+                  <div id="container-name-select" class="hidden">
+                    <select id="client-select-existing" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                      <option value="">-- Select Existing Client --</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Complete Residential Address *</label>
+                  <input type="text" id="client-address" value="" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Contact Number</label>
+                    <input type="text" id="client-contact" value="" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Co-maker Name</label>
+                    <input type="text" id="client-comaker" value="" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800/80 space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Loan Amount (₱) *</label>
+                    <input type="number" id="loan-amount" min="1" step="any" value="" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Loan Term (Months) *</label>
+                    <select id="loan-term" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                      <option value="1">1 Month (2 Payments)</option>
+                      <option value="2">2 Months (4 Payments)</option>
+                      <option value="3" selected>3 Months (6 Payments)</option>
+                      <option value="4">4 Months (8 Payments)</option>
+                      <option value="6">6 Months (12 Payments)</option>
+                      <option value="12">12 Months (24 Payments)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Disbursement Date *</label>
+                    <input type="date" id="disbursement-date" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">First Payment Date *</label>
+                    <input type="date" id="first-payment-date" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                <i data-lucide="cloud-upload" class="w-4 h-4"></i> Save Pending Loan Application
+              </button>
+            </form>
+          </div>
+
+          <!-- Saved Directory -->
+          <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+                <i data-lucide="users" class="w-4 h-4 text-blue-400"></i> Borrower Directory
+              </h3>
+              <span id="client-count" class="text-xs px-2 py-0.5 bg-slate-800 text-slate-300 rounded-full">0 clients</span>
+            </div>
+
+            <div class="space-y-2">
+              <div class="flex gap-2">
+                <select id="filter-status" class="w-1/2 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                  <option value="ALL">All Statuses</option>
+                  <option value="PENDING">Pending Approval</option>
+                  <option value="ACTIVE_ON_TIME">Active (On Time)</option>
+                  <option value="IN_ARREARS">In Arrears</option>
+                  <option value="CLOSED">Closed (Paid)</option>
+                </select>
+                <div class="relative w-1/2">
+                  <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-500"></i>
+                  <input type="text" id="search-clients" class="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                </div>
+              </div>
+            </div>
+
+            <div id="clients-list" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <p class="text-xs text-slate-500 text-center py-4">No saved clients found.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Schedule & Promissory Note -->
+        <div class="lg:col-span-7 space-y-6">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="flex gap-2">
+              <button id="tab-btn-schedule" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Amortization Schedule
+              </button>
+              <button id="tab-btn-note" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200">
+                Promissory Note View
+              </button>
+            </div>
+
+            <button id="btn-print-note-sched" type="button" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+              <i data-lucide="printer" class="w-4 h-4 text-emerald-400"></i> Print Note & Schedule
+            </button>
+          </div>
+
+          <!-- Schedule Display -->
+          <div id="section-schedule" class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="font-semibold text-slate-200">Amortization Schedule</h3>
+                <p class="text-xs text-slate-400">2.5% Monthly Rate (1.25% Semi-Monthly)</p>
+              </div>
+              <p id="total-periods-badge" class="text-sm font-bold text-emerald-400">0 Periods</p>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+                    <th class="py-2 px-3">#</th>
+                    <th class="py-2 px-3">Due Date</th>
+                    <th class="py-2 px-3 text-right">Principal</th>
+                    <th class="py-2 px-3 text-right">Interest</th>
+                    <th class="py-2 px-3 text-right">Payment</th>
+                    <th class="py-2 px-3 text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody id="schedule-tbody" class="divide-y divide-slate-800/60 text-xs font-mono text-slate-300">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Promissory Note Preview -->
+          <div id="section-note" class="hidden bg-slate-950/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 text-xs text-slate-300 space-y-4 font-serif leading-relaxed">
+              <div class="text-center font-sans space-y-1">
+                <h4 class="text-base font-bold uppercase tracking-wide text-white">PROMISSORY NOTE</h4>
+                <p class="text-[11px] text-slate-400">Helping Hand Microfinance Loan Agreement</p>
+              </div>
+
+              <div class="flex justify-between font-sans text-[11px] border-y border-slate-800 py-2">
+                <span><strong>Principal:</strong> <span id="note-principal" class="text-emerald-400 font-bold">₱0.00</span></span>
+                <span><strong>Date:</strong> <span id="note-date">--</span></span>
+              </div>
+
+              <p>
+                FOR VALUE RECEIVED, I, <strong id="note-borrower" class="text-slate-100 uppercase underline">[ Borrower ]</strong>, 
+                residing at <span id="note-address" class="text-slate-200">[ Address ]</span>, promise to pay the principal sum of 
+                <strong id="note-principal-text" class="text-slate-100">₱0.00</strong>, with interest at <strong>2.5% per month</strong> (1.25% twice monthly).
+              </p>
+
+              <p>
+                Payable in <strong id="note-periods">0</strong> semi-monthly installments of <strong id="note-payment" class="text-emerald-400">₱0.00</strong> starting on <strong id="note-first-due">--</strong>.
+              </p>
+
+              <div class="grid grid-cols-2 gap-8 pt-8 font-sans">
+                <div class="border-t border-slate-700 pt-2 text-center">
+                  <p id="note-sign-borrower" class="font-bold text-slate-200 uppercase">[ Borrower Name ]</p>
+                  <p class="text-[10px] text-slate-500">Borrower Signature</p>
+                </div>
+                <div class="border-t border-slate-700 pt-2 text-center">
+                  <p id="note-sign-comaker" class="font-bold text-slate-200 uppercase">[ Co-maker Name ]</p>
+                  <p class="text-[10px] text-slate-500">Signature of Co-Maker</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: POST REPAYMENT & STATEMENT OF ACCOUNT -->
+    <div id="view-repay" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-5 space-y-6">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <h2 class="font-semibold text-slate-200 flex items-center gap-2 pb-3 border-b border-slate-800">
+              <i data-lucide="hand-coins" class="w-4 h-4 text-emerald-400"></i> Record Loan Payment
+            </h2>
+
+            <form id="repayment-form" class="space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Select Active Borrower *</label>
+                <select id="repay-client-select" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                  <option value="">-- Choose Client --</option>
+                </select>
+              </div>
+
+              <div id="repay-account-summary" class="hidden p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1 text-xs">
+                <div class="flex justify-between text-slate-400"><span>Total Payable:</span><span id="repay-sum-total" class="font-bold text-slate-200">₱0.00</span></div>
+                <div class="flex justify-between text-slate-400"><span>Total Paid:</span><span id="repay-sum-paid" class="font-bold text-emerald-400">₱0.00</span></div>
+                <div class="flex justify-between text-slate-400 font-bold border-t border-slate-800 pt-1 mt-1"><span>Current Balance:</span><span id="repay-sum-bal" class="text-amber-400">₱0.00</span></div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Payment Amount (₱) *</label>
+                  <input type="number" id="repay-amount" step="any" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Payment Date *</label>
+                  <input type="date" id="repay-date" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">OR / Receipt Reference Number</label>
+                <input type="text" id="repay-ref" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+              </div>
+
+              <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition">
+                <i data-lucide="lock" class="w-4 h-4"></i> Post & Deduct Payment (PIN)
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 space-y-6">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <h3 class="font-semibold text-slate-200">Repayment Ledger & Statement</h3>
+                <p id="ledger-client-name" class="text-xs text-slate-400">Select a borrower to view statement</p>
+              </div>
+              <button id="btn-print-statement" type="button" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+                <i data-lucide="printer" class="w-3.5 h-3.5 text-emerald-400"></i> Print Statement
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+                    <th class="py-2.5 px-3">Date</th>
+                    <th class="py-2.5 px-3">OR Ref</th>
+                    <th class="py-2.5 px-3 text-right">Amount Paid</th>
+                    <th class="py-2.5 px-3 text-right">Remaining Balance</th>
+                  </tr>
+                </thead>
+                <tbody id="repay-ledger-tbody" class="divide-y divide-slate-800/60 text-xs font-mono text-slate-300">
+                  <tr><td colspan="4" class="py-6 text-center text-slate-500 font-sans">No payment records found. Select an active borrower above.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 3: SUMMARY REPORTS & STATUS REPORT -->
+    <div id="view-reports" class="hidden space-y-6">
+      
+      <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-slate-800">
+          <div>
+            <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i> Summary Reports & Status Analysis
+            </h2>
+            <p class="text-xs text-slate-400">Analyze loan portfolios by status and cash flow date ranges</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-export-range-csv" type="button" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> Export CSV
+            </button>
+            <button id="btn-print-range-summary" type="button" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+              <i data-lucide="printer" class="w-4 h-4 text-emerald-400"></i> Print Summary Report
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Report Type *</label>
+            <select id="range-report-type" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+              <option value="ALL">All (Collections & Disbursements)</option>
+              <option value="COLLECTIONS">Collections Only</option>
+              <option value="DISBURSEMENTS">Disbursements Only</option>
+              <option value="INTEREST_COLLECTED">Interest Collected Only (60% Sponsor / 40% Worker Split)</option>
+              <option value="REMAINING_COLLECTABLES">Remaining Principal & Interest Collectables (Outstanding Receivables)</option>
+              <option value="STATUS_SUMMARY">Loan Portfolio Status Summary</option>
+              <option value="CAPITAL_DEPOSITS">Capital Deposits & Investments Report</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Start Date *</label>
+            <input type="date" id="range-start-date" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">End Date *</label>
+            <input type="date" id="range-end-date" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <button id="btn-filter-range" type="button" class="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition flex items-center justify-center gap-2">
+            <i data-lucide="filter" class="w-4 h-4"></i> Generate Report
+          </button>
+        </div>
+      </div>
+
+      <div id="metrics-standard" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-blue-500/10 text-blue-400 rounded-lg"><i data-lucide="arrow-up-right" class="w-6 h-6"></i></div>
+          <div>
+            <p id="metric-title-1" class="text-xs text-slate-400">Total Loans Released</p>
+            <p id="range-total-released" class="text-xl font-bold text-blue-400">₱0.00</p>
+            <p id="range-count-released" class="text-[10px] text-slate-500">0 Disbursements</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="arrow-down-left" class="w-6 h-6"></i></div>
+          <div>
+            <p id="metric-title-2" class="text-xs text-slate-400">Total Collections</p>
+            <p id="range-total-collected" class="text-xl font-bold text-emerald-400">₱0.00</p>
+            <p id="range-count-collected" class="text-[10px] text-slate-500">0 Collections</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-purple-500/10 text-purple-400 rounded-lg"><i data-lucide="wallet" class="w-6 h-6"></i></div>
+          <div>
+            <p id="metric-title-3" class="text-xs text-slate-400">Net Cash Flow</p>
+            <p id="range-net-flow" class="text-xl font-bold text-purple-300">₱0.00</p>
+            <p id="metric-subtitle-3" class="text-[10px] text-slate-500">Collections vs Releases</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="metrics-status-summary" class="hidden grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg"><i data-lucide="clock" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">Pending Approval</p>
+            <p id="stat-count-pending" class="text-xl font-bold text-amber-400">0</p>
+          </div>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg"><i data-lucide="check-circle" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">Active (On Time)</p>
+            <p id="stat-count-ontime" class="text-xl font-bold text-emerald-400">0</p>
+          </div>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-rose-500/10 text-rose-400 rounded-lg"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">In Arrears</p>
+            <p id="stat-count-arrears" class="text-xl font-bold text-rose-400">0</p>
+          </div>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex items-center gap-4">
+          <div class="p-3 bg-slate-800 text-slate-300 rounded-lg"><i data-lucide="check-check" class="w-6 h-6"></i></div>
+          <div>
+            <p class="text-xs text-slate-400">Closed (Paid)</p>
+            <p id="stat-count-closed" class="text-xl font-bold text-slate-200">0</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="report-tables-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div id="container-range-disbursements" class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+            <i data-lucide="arrow-up-right" class="w-4 h-4 text-blue-400"></i> Disbursements in Selected Period
+          </h3>
+          <div class="overflow-x-auto max-h-60">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+                  <th class="py-2 px-2">Date</th>
+                  <th class="py-2 px-2">Borrower</th>
+                  <th class="py-2 px-2 text-right">Amount Released</th>
+                  <th class="py-2 px-2 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="range-disbursements-tbody" class="divide-y divide-slate-800/60 text-xs font-mono text-slate-300">
+                <tr><td colspan="4" class="py-4 text-center text-slate-500">No releases found in date range.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="container-range-collections" class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-1">
+          <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+            <i data-lucide="arrow-down-left" class="w-4 h-4 text-emerald-400"></i> Collections in Selected Period
+          </h3>
+          <div class="overflow-x-auto max-h-72">
+            <table class="w-full text-left border-collapse">
+              <thead id="collections-thead">
+                <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+                  <th class="py-2 px-2">Date</th>
+                  <th class="py-2 px-2">Borrower</th>
+                  <th class="py-2 px-2">OR Ref</th>
+                  <th class="py-2 px-2 text-right">Amount</th>
+                  <th class="py-2 px-2 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="range-collections-tbody" class="divide-y divide-slate-800/60 text-xs font-mono text-slate-300">
+                <tr><td colspan="5" class="py-4 text-center text-slate-500">No collections found in date range.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: CAPITAL & CASH RUNNING LEDGER -->
+    <div id="view-capital" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <div class="lg:col-span-4 space-y-6">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="pb-3 border-b border-slate-800">
+              <h2 class="font-semibold text-slate-200 flex items-center gap-2 text-sm">
+                <i data-lucide="landmark" class="w-4 h-4 text-emerald-400"></i> Initial Capital Configuration
+              </h2>
+              <p class="text-[11px] text-slate-400">Set starting capital amount and effective beginning date (Secured PIN)</p>
+            </div>
+
+            <form id="capital-form" class="space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Beginning Date *</label>
+                <input type="date" id="cap-start-date" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Initial Capital Amount (₱) *</label>
+                <input type="number" id="cap-start-amount" step="any" min="0" required placeholder="e.g., 500000" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+              </div>
+              <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition">
+                <i data-lucide="lock" class="w-4 h-4"></i> Save Opening Capital (PIN)
+              </button>
+            </form>
+          </div>
+
+          <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="pb-3 border-b border-slate-800">
+              <h2 class="font-semibold text-slate-200 flex items-center gap-2 text-sm">
+                <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i> Record Capital Deposit (Investment)
+              </h2>
+              <p class="text-[11px] text-slate-400">Add additional capital investments into the cash fund (Secured PIN)</p>
+            </div>
+
+            <form id="capital-deposit-form" class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Deposit Date *</label>
+                  <input type="date" id="cap-deposit-date" required class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Amount (₱) *</label>
+                  <input type="number" id="cap-deposit-amount" step="any" min="1" required placeholder="e.g., 100000" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Investor / Particulars *</label>
+                <input type="text" id="cap-deposit-particulars" required placeholder="e.g., Additional Capital from Investor X" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Reference / OR No.</label>
+                <input type="text" id="cap-deposit-ref" placeholder="e.g., DEP-001" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+              </div>
+              <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition">
+                <i data-lucide="lock" class="w-4 h-4"></i> Post Capital Deposit (PIN)
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center content-start">
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 space-y-1">
+            <div class="flex justify-between items-center text-slate-400 text-xs">
+              <span>Beginning Capital</span>
+              <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
+            </div>
+            <p id="card-cap-initial" class="text-xl font-bold text-slate-100">₱0.00</p>
+            <p id="card-cap-date" class="text-[10px] text-slate-500">Start Date: --</p>
+          </div>
+
+          <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 space-y-1">
+            <div class="flex justify-between items-center text-slate-400 text-xs">
+              <span>Total Out vs In</span>
+              <i data-lucide="repeat" class="w-4 h-4 text-amber-400"></i>
+            </div>
+            <p id="card-cap-net-change" class="text-lg font-bold text-amber-400">Out: ₱0 / In: ₱0</p>
+            <p class="text-[10px] text-slate-500">Disbursements vs Collections/Deposits</p>
+          </div>
+
+          <div class="bg-slate-950/50 border border-emerald-800/60 rounded-xl p-4 space-y-1 bg-emerald-950/20">
+            <div class="flex justify-between items-center text-emerald-400 text-xs font-semibold">
+              <span>Current Running Balance</span>
+              <i data-lucide="wallet" class="w-4 h-4"></i>
+            </div>
+            <p id="card-cap-running" class="text-2xl font-bold text-emerald-400">₱0.00</p>
+            <p class="text-[10px] text-emerald-400/80">Available Cash Capital</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <i data-lucide="calendar-range" class="w-4 h-4 text-emerald-400"></i>
+          <span class="text-xs font-semibold text-slate-200">Ledger Date Range Filter (Default: 1st of Current Month to Today)</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">Start Date</label>
+            <input type="date" id="cap-filter-start" class="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">End Date</label>
+            <input type="date" id="cap-filter-end" class="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <button id="btn-filter-capital" type="button" class="mt-4 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i> Apply Range
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="font-semibold text-slate-200">Capital & Cash Flow Running Ledger</h3>
+            <p id="capital-ledger-subtitle" class="text-xs text-slate-400">Chronological audit trail for the selected date range</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-export-capital-csv" type="button" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> Export CSV
+            </button>
+            <button id="btn-print-capital-ledger" type="button" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+              <i data-lucide="printer" class="w-4 h-4 text-emerald-400"></i> Print Capital Ledger
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+                <th class="py-2.5 px-3">Date</th>
+                <th class="py-2.5 px-3">Transaction Type</th>
+                <th class="py-2.5 px-3">Borrower / Particulars</th>
+                <th class="py-2.5 px-3">Ref No.</th>
+                <th class="py-2.5 px-3 text-right text-rose-400">Money Out (Disb)</th>
+                <th class="py-2.5 px-3 text-right text-emerald-400">Money In (Coll/Dep)</th>
+                <th class="py-2.5 px-3 text-right text-purple-300 font-bold">Running Balance</th>
+              </tr>
+            </thead>
+            <tbody id="capital-ledger-tbody" class="divide-y divide-slate-800/60 text-xs font-mono text-slate-300">
+              <tr><td colspan="7" class="py-6 text-center text-slate-500 font-sans">No capital activity recorded. Set an opening capital above.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- DEDICATED PRINTABLE DOCUMENT CONTAINER -->
+  <div id="printable-area" class="hidden">
+    
+    <div id="print-view-note-sched" class="space-y-6">
+      <div class="text-center space-y-1 font-sans border-b border-black pb-3">
+        <h1 class="text-xl font-bold tracking-wider uppercase">HELPING HAND MICROFINANCE PROMISSORY NOTE</h1>
+        <p class="text-xs text-gray-600">Official Loan Agreement & Repayment Undertaking</p>
+      </div>
+
+      <div class="flex justify-between text-xs font-sans border-b border-gray-300 pb-2">
+        <p><strong>Loan Amount:</strong> <span id="print-principal">₱0.00</span></p>
+        <p><strong>Disbursement Date:</strong> <span id="print-date">--</span></p>
+      </div>
+
+      <p class="text-xs leading-relaxed text-justify font-serif">
+        FOR VALUE RECEIVED, I, <strong id="print-borrower" class="uppercase">[ Borrower Name ]</strong>, 
+        residing at <strong id="print-address">[ Borrower Address ]</strong>, 
+        promise to pay the principal amount of <strong id="print-principal-2">₱0.00</strong>, with interest calculated at 
+        <strong>2.5% per month</strong> (payable at <strong>1.25% semi-monthly</strong>).
+      </p>
+
+      <p class="text-xs leading-relaxed text-justify font-serif">
+        I agree to pay the total sum of <strong id="print-total">₱0.00</strong> in <strong id="print-periods">0</strong> semi-monthly installments of 
+        <strong id="print-payment">₱0.00</strong> starting on <strong id="print-first-due">--</strong> and every 15 days thereafter.
+      </p>
+
+      <div class="grid grid-cols-2 gap-12 pt-8 font-sans text-xs">
+        <div class="border-t border-black pt-2 text-center">
+          <p id="print-sign-borrower" class="font-bold uppercase">[ Borrower Name ]</p>
+          <p class="text-[10px] text-gray-600">Borrower Signature</p>
+        </div>
+        <div class="border-t border-black pt-2 text-center">
+          <p id="print-sign-comaker" class="font-bold uppercase">[ Co-maker Name ]</p>
+          <p class="text-[10px] text-gray-600">Signature of Co-Maker</p>
+        </div>
+      </div>
+
+      <div class="page-break pt-6"></div>
+
+      <div class="space-y-4">
+        <div class="border-b border-black pb-2 flex justify-between items-end font-sans">
+          <div>
+            <h2 class="text-base font-bold uppercase">SCHEDULE OF AMORTIZATION</h2>
+            <p class="text-xs text-gray-600">Borrower: <span id="print-sched-borrower" class="font-bold">--</span></p>
+          </div>
+          <div class="text-right text-xs">
+            <p>Monthly Rate: <strong>2.5%</strong></p>
+            <p>Period Rate: <strong>1.25% (Semi-Monthly)</strong></p>
+          </div>
+        </div>
+
+        <table class="w-full text-left border-collapse font-sans text-[11px]">
+          <thead>
+            <tr class="border-b-2 border-black font-bold text-gray-800">
+              <th class="py-1 px-2">#</th>
+              <th class="py-1 px-2">Due Date</th>
+              <th class="py-1 px-2 text-right">Principal</th>
+              <th class="py-1 px-2 text-right">Interest</th>
+              <th class="py-1 px-2 text-right">Payment</th>
+              <th class="py-1 px-2 text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody id="print-schedule-tbody" class="divide-y divide-gray-300 font-mono">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="print-view-statement" class="hidden space-y-6 font-sans">
+      <div class="text-center space-y-1 border-b border-black pb-3">
+        <h1 class="text-xl font-bold uppercase">STATEMENT OF LOAN ACCOUNT</h1>
+        <p class="text-xs text-gray-600">Helping Hand Microfinance • Complete Repayment History</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 text-xs border-b border-gray-300 pb-3">
+        <div>
+          <p><strong>Borrower Name:</strong> <span id="print-stmt-name">--</span></p>
+          <p><strong>Address:</strong> <span id="print-stmt-address">--</span></p>
+        </div>
+        <div class="text-right">
+          <p><strong>Total Loan Amount:</strong> <span id="print-stmt-principal">₱0.00</span></p>
+          <p><strong>Current Outstanding Balance:</strong> <span id="print-stmt-balance" class="font-bold">₱0.00</span></p>
+        </div>
+      </div>
+
+      <table class="w-full text-left border-collapse text-[11px]">
+        <thead>
+          <tr class="border-b-2 border-black font-bold">
+            <th class="py-1 px-2">Payment Date</th>
+            <th class="py-1 px-2">OR Ref</th>
+            <th class="py-1 px-2 text-right">Amount Paid</th>
+            <th class="py-1 px-2 text-right">Remaining Balance</th>
+          </tr>
+        </thead>
+        <tbody id="print-stmt-tbody" class="divide-y divide-gray-300 font-mono">
+        </tbody>
+      </table>
+    </div>
+
+    <div id="print-view-range-summary" class="hidden space-y-6 font-sans">
+      <div class="text-center space-y-1 border-b border-black pb-3">
+        <h1 id="print-range-title" class="text-xl font-bold uppercase">SUMMARY TRANSACTION REPORT</h1>
+        <p class="text-xs text-gray-650">Report Details: <span id="print-range-dates" class="font-bold">--</span></p>
+      </div>
+
+      <div id="print-range-metrics-box" class="grid grid-cols-3 gap-4 text-xs text-center border-y border-gray-300 py-3">
+        <div>
+          <p id="print-metric-label-1" class="text-gray-600">Total Disbursements</p>
+          <p id="print-range-disb" class="text-sm font-bold">₱0.00</p>
+        </div>
+        <div>
+          <p id="print-metric-label-2" class="text-gray-600">Total Collections</p>
+          <p id="print-range-coll" class="text-sm font-bold">₱0.00</p>
+        </div>
+        <div>
+          <p id="print-metric-label-3" class="text-gray-600">Net Cash Flow</p>
+          <p id="print-range-net" class="text-sm font-bold">₱0.00</p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <h3 id="print-range-table-heading" class="font-bold text-xs uppercase border-b border-black pb-1">Transactions Log</h3>
+        <table class="w-full text-left border-collapse text-[10px]">
+          <thead>
+            <tr id="print-range-thead-tr" class="border-b border-black font-bold">
+              <th class="py-1 px-1">Date</th>
+              <th class="py-1 px-1">Type</th>
+              <th class="py-1 px-1">Borrower</th>
+              <th class="py-1 px-1">OR / Ref</th>
+              <th class="py-1 px-1 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="print-range-coll-tbody" class="divide-y divide-gray-300 font-mono">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="print-view-capital-ledger" class="hidden space-y-6 font-sans">
+      <div class="text-center space-y-1 border-b border-black pb-3">
+        <h1 class="text-xl font-bold uppercase">CAPITAL & CASH FLOW ACCOUNTING LEDGER</h1>
+        <p class="text-xs text-gray-650">Filtered Date Range Statement</p>
+      </div>
+
+      <div class="flex justify-between text-xs border-y border-gray-300 py-2">
+        <p><strong>Period Filter:</strong> <span id="print-cap-date-range">--</span></p>
+        <p><strong>Beginning Balance:</strong> <span id="print-cap-begin-bal">₱0.00</span></p>
+        <p><strong>Ending Running Balance:</strong> <span id="print-cap-running-bal" class="font-bold">₱0.00</span></p>
+      </div>
+
+      <table class="w-full text-left border-collapse text-[10px]">
+        <thead>
+          <tr class="border-b-2 border-black font-bold">
+            <th class="py-1 px-1">Date</th>
+            <th class="py-1 px-1">Type</th>
+            <th class="py-1 px-1">Particulars / Borrower</th>
+            <th class="py-1 px-1">Ref No.</th>
+            <th class="py-1 px-1 text-right">Money Out</th>
+            <th class="py-1 px-1 text-right">Money In</th>
+            <th class="py-1 px-1 text-right">Running Balance</th>
+          </tr>
+        </thead>
+        <tbody id="print-cap-tbody" class="divide-y divide-gray-300 font-mono">
+        </tbody>
+      </table>
+
+      <div class="grid grid-cols-2 gap-12 pt-12 text-xs">
+        <div class="border-t border-black pt-2 text-center">
+          <p class="font-bold uppercase">[ Prepared By: Accountant / Officer ]</p>
+          <p class="text-[10px] text-gray-600">Accounting / Finance Signature</p>
+        </div>
+        <div class="border-t border-black pt-2 text-center">
+          <p class="font-bold uppercase">[ Approved By: Management ]</p>
+          <p class="text-[10px] text-gray-600">Authorized Signature</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- External Script File Linked -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

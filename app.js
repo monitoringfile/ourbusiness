@@ -1,0 +1,1966 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { 
+  getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+  getFirestore, collection, addDoc, setDoc, onSnapshot, doc, query, orderBy, serverTimestamp, updateDoc, deleteDoc 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBjUfZvQ-N_KVnWyHxI4pKI0l7VJao1geg",
+  authDomain: "startbusiness-b1e16.firebaseapp.com",
+  projectId: "startbusiness-b1e16",
+  storageBucket: "startbusiness-b1e16.firebasestorage.app",
+  messagingSenderId: "818391611265",
+  appId: "1:818391611265:web:c7429768c94e0c005e9a80",
+  measurementId: "G-934NWMFMZK"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+getRedirectResult(auth).catch((error) => {
+  console.error("Redirect login error:", error);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) lucide.createIcons();
+
+  let clients = [];
+  let repayments = [];
+  let capitalDeposits = [];
+  let capitalConfig = { amount: 0, startDate: '' };
+  let activeClient = null;
+  let currentUser = null;
+  let onlineUsersStore = [];
+  let presenceInterval = null;
+
+  const formatPHP = (val) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val || 0);
+
+  const now = new Date();
+  const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const today = now.toISOString().split('T')[0];
+
+  document.getElementById('cap-filter-start').value = firstDayOfCurrentMonth;
+  document.getElementById('cap-filter-end').value = today;
+  document.getElementById('cap-deposit-date').value = today;
+
+  const navLoans = document.getElementById('nav-tab-loans');
+  const navRepay = document.getElementById('nav-tab-repay');
+  const navReports = document.getElementById('nav-tab-reports');
+  const navCapital = document.getElementById('nav-tab-capital');
+
+  const viewLoans = document.getElementById('view-loans');
+  const viewRepay = document.getElementById('view-repay');
+  const viewReports = document.getElementById('view-reports');
+  const viewCapital = document.getElementById('view-capital');
+
+  function switchTab(activeBtn, showView) {
+    [navLoans, navRepay, navReports, navCapital].forEach(btn => {
+      btn.className = "px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 flex items-center gap-2";
+    });
+    activeBtn.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-2";
+    [viewLoans, viewRepay, viewReports, viewCapital].forEach(v => v.classList.add('hidden'));
+    showView.classList.remove('hidden');
+  }
+
+  navLoans.addEventListener('click', () => switchTab(navLoans, viewLoans));
+  navRepay.addEventListener('click', () => switchTab(navRepay, viewRepay));
+  navReports.addEventListener('click', () => switchTab(navReports, viewReports));
+  navCapital.addEventListener('click', () => switchTab(navCapital, viewCapital));
+
+  const onlineBadgeBtn = document.getElementById('online-badge-btn');
+  const onlineModal = document.getElementById('online-modal');
+  const btnCloseOnlineModal = document.getElementById('btn-close-online-modal');
+  const onlineUsersList = document.getElementById('online-users-list');
+
+  onlineBadgeBtn.addEventListener('click', () => {
+    onlineUsersList.innerHTML = '';
+    if (onlineUsersStore.length === 0) {
+      onlineUsersList.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">No other users online.</p>';
+    } else {
+      onlineUsersStore.forEach(u => {
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs";
+        div.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="font-semibold text-slate-200">${u.name}</span>
+          </div>
+          <span class="text-[10px] text-slate-400">${u.email}</span>
+        `;
+        onlineUsersList.appendChild(div);
+      });
+    }
+    onlineModal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  });
+
+  btnCloseOnlineModal.addEventListener('click', () => onlineModal.classList.add('hidden'));
+
+  const tabBtnSchedule = document.getElementById('tab-btn-schedule');
+  const tabBtnNote = document.getElementById('tab-btn-note');
+  const sectionSchedule = document.getElementById('section-schedule');
+  const sectionNote = document.getElementById('section-note');
+
+  tabBtnSchedule.addEventListener('click', () => {
+    sectionSchedule.classList.remove('hidden');
+    sectionNote.classList.add('hidden');
+    tabBtnSchedule.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+    tabBtnNote.className = "px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200";
+  });
+
+  tabBtnNote.addEventListener('click', () => {
+    sectionNote.classList.remove('hidden');
+    sectionSchedule.classList.add('hidden');
+    tabBtnNote.className = "px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+    tabBtnSchedule.className = "px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-200";
+  });
+
+  const loanTypeRadios = document.querySelectorAll('input[name="loan-type"]');
+  const containerNameInput = document.getElementById('container-name-input');
+  const containerNameSelect = document.getElementById('container-name-select');
+  const clientNameInput = document.getElementById('client-name');
+  const clientSelectExisting = document.getElementById('client-select-existing');
+  const clientAddress = document.getElementById('client-address');
+  const clientContact = document.getElementById('client-contact');
+  const clientComaker = document.getElementById('client-comaker');
+
+  loanTypeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.value === 'RELOAN') {
+        containerNameInput.classList.add('hidden');
+        containerNameSelect.classList.remove('hidden');
+        clientNameInput.required = false;
+        clientSelectExisting.required = true;
+        populateExistingClientsDropdown();
+      } else {
+        containerNameSelect.classList.add('hidden');
+        containerNameInput.classList.remove('hidden');
+        clientSelectExisting.required = false;
+        clientNameInput.required = true;
+        clientNameInput.value = '';
+        clientAddress.value = '';
+        clientContact.value = '';
+        clientComaker.value = '';
+        recalculate();
+      }
+    });
+  });
+
+  function populateExistingClientsDropdown() {
+    clientSelectExisting.innerHTML = '<option value="">-- Select Existing Client --</option>';
+    const uniqueNames = [...new Set(clients.map(c => c.name))].sort();
+    uniqueNames.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      clientSelectExisting.appendChild(opt);
+    });
+  }
+
+  clientSelectExisting.addEventListener('change', () => {
+    const selectedName = clientSelectExisting.value;
+    if (!selectedName) return;
+    const latestRecord = clients.find(c => c.name === selectedName);
+    if (latestRecord) {
+      clientAddress.value = latestRecord.address || '';
+      clientContact.value = latestRecord.contact || '';
+      clientComaker.value = latestRecord.comaker || '';
+      recalculate();
+    }
+  });
+
+  const loanAmount = document.getElementById('loan-amount');
+  const loanTerm = document.getElementById('loan-term');
+  const disbursementDate = document.getElementById('disbursement-date');
+  const firstPaymentDate = document.getElementById('first-payment-date');
+  const loanForm = document.getElementById('loan-form');
+  const btnClearForm = document.getElementById('btn-clear-form');
+  const scheduleTbody = document.getElementById('schedule-tbody');
+
+  disbursementDate.value = today;
+  const defaultFirstPay = new Date();
+  defaultFirstPay.setDate(defaultFirstPay.getDate() + 15);
+  firstPaymentDate.value = defaultFirstPay.toISOString().split('T')[0];
+
+  document.getElementById('range-start-date').value = today;
+  document.getElementById('range-end-date').value = today;
+  document.getElementById('repay-date').value = today;
+  document.getElementById('cap-start-date').value = today;
+
+  btnClearForm.addEventListener('click', () => {
+    loanForm.reset();
+    activeClient = null;
+    clientNameInput.value = '';
+    clientAddress.value = '';
+    clientContact.value = '';
+    clientComaker.value = '';
+    loanAmount.value = '';
+    document.querySelector('input[name="loan-type"][value="NEW"]').checked = true;
+    containerNameSelect.classList.add('hidden');
+    containerNameInput.classList.remove('hidden');
+    clientNameInput.required = true;
+    disbursementDate.value = today;
+    const d = new Date();
+    d.setDate(d.getDate() + 15);
+    firstPaymentDate.value = d.toISOString().split('T')[0];
+    recalculate();
+    renderClients();
+  });
+
+  function calculateLoan() {
+    const principal = parseFloat(loanAmount.value) || 0;
+    const months = parseInt(loanTerm.value) || 1;
+    const periods = months * 2;
+    const periodRate = 0.0125;
+    const totalInterest = principal * periodRate * periods;
+    const totalPayable = principal + totalInterest;
+    const periodPayment = periods > 0 ? totalPayable / periods : 0;
+    return { principal, months, periods, totalInterest, totalPayable, periodPayment };
+  }
+
+  function recalculate() {
+    const calc = calculateLoan();
+    document.getElementById('card-principal').textContent = formatPHP(calc.principal);
+    document.getElementById('card-interest').textContent = formatPHP(calc.totalInterest);
+    document.getElementById('card-payment').textContent = formatPHP(calc.periodPayment);
+    document.getElementById('card-total').textContent = formatPHP(calc.totalPayable);
+    document.getElementById('total-periods-badge').textContent = `${calc.periods} Periods`;
+
+    scheduleTbody.innerHTML = '';
+    const printTbody = document.getElementById('print-schedule-tbody');
+    printTbody.innerHTML = '';
+
+    let remainingBalance = calc.totalPayable;
+    const principalPerPeriod = calc.periods > 0 ? calc.principal / calc.periods : 0;
+    const interestPerPeriod = calc.periods > 0 ? calc.totalInterest / calc.periods : 0;
+    let payDate = firstPaymentDate.value ? new Date(firstPaymentDate.value) : new Date();
+
+    for (let i = 1; i <= calc.periods; i++) {
+      remainingBalance -= calc.periodPayment;
+      if (remainingBalance < 0.01) remainingBalance = 0;
+      const dateStr = payDate.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="py-2 px-3 font-semibold text-slate-400">${i}</td>
+        <td class="py-2 px-3 text-slate-200">${dateStr}</td>
+        <td class="py-2 px-3 text-right">${formatPHP(principalPerPeriod)}</td>
+        <td class="py-2 px-3 text-right text-emerald-400">${formatPHP(interestPerPeriod)}</td>
+        <td class="py-2 px-3 text-right font-bold text-slate-100">${formatPHP(calc.periodPayment)}</td>
+        <td class="py-2 px-3 text-right text-slate-400">${formatPHP(remainingBalance)}</td>
+      `;
+      scheduleTbody.appendChild(tr);
+
+      const printTr = document.createElement('tr');
+      printTr.innerHTML = `
+        <td class="py-1 px-2">${i}</td>
+        <td class="py-1 px-2">${dateStr}</td>
+        <td class="py-1 px-2 text-right">${formatPHP(principalPerPeriod)}</td>
+        <td class="py-1 px-2 text-right">${formatPHP(interestPerPeriod)}</td>
+        <td class="py-1 px-2 text-right font-bold">${formatPHP(calc.periodPayment)}</td>
+        <td class="py-1 px-2 text-right">${formatPHP(remainingBalance)}</td>
+      `;
+      printTbody.appendChild(printTr);
+      payDate.setDate(payDate.getDate() + 15);
+    }
+
+    updatePromissoryNote(calc);
+  }
+
+  function updatePromissoryNote(calc) {
+    const isReloan = document.querySelector('input[name="loan-type"]:checked').value === 'RELOAN';
+    const name = isReloan ? (clientSelectExisting.value || '[ Borrower Name ]') : (clientNameInput.value || '[ Borrower Name ]');
+    const addr = clientAddress.value || '[ Address ]';
+    const comaker = clientComaker.value || '[ Co-maker Name ]';
+    const disbDate = disbursementDate.value ? new Date(disbursementDate.value).toLocaleDateString('en-PH') : '--';
+    const firstDue = firstPaymentDate.value ? new Date(firstPaymentDate.value).toLocaleDateString('en-PH') : '--';
+
+    document.getElementById('note-borrower').textContent = name;
+    document.getElementById('note-address').textContent = addr;
+    document.getElementById('note-principal').textContent = formatPHP(calc.principal);
+    document.getElementById('note-principal-text').textContent = formatPHP(calc.principal);
+    document.getElementById('note-payment').textContent = formatPHP(calc.periodPayment);
+    document.getElementById('note-periods').textContent = calc.periods;
+    document.getElementById('note-date').textContent = disbDate;
+    document.getElementById('note-first-due').textContent = firstDue;
+    document.getElementById('note-sign-borrower').textContent = name;
+    document.getElementById('note-sign-comaker').textContent = comaker;
+
+    document.getElementById('print-borrower').textContent = name;
+    document.getElementById('print-address').textContent = addr;
+    document.getElementById('print-principal').textContent = formatPHP(calc.principal);
+    document.getElementById('print-principal-2').textContent = formatPHP(calc.principal);
+    document.getElementById('print-payment').textContent = formatPHP(calc.periodPayment);
+    document.getElementById('print-total').textContent = formatPHP(calc.totalPayable);
+    document.getElementById('print-periods').textContent = calc.periods;
+    document.getElementById('print-date').textContent = disbDate;
+    document.getElementById('print-first-due').textContent = firstDue;
+    document.getElementById('print-sign-borrower').textContent = name;
+    document.getElementById('print-sign-comaker').textContent = comaker;
+    document.getElementById('print-sched-borrower').textContent = name;
+  }
+
+  [loanAmount, loanTerm, disbursementDate, firstPaymentDate, clientNameInput, clientSelectExisting, clientAddress, clientComaker].forEach(i => {
+    i.addEventListener('input', recalculate);
+    i.addEventListener('change', recalculate);
+  });
+
+  function getClientBalanceInfo(client) {
+    const periods = client.term * 2;
+    const totalInterest = client.principal * 0.0125 * periods;
+    const totalPayable = client.principal + totalInterest;
+    const periodPayment = periods > 0 ? totalPayable / periods : 0;
+
+    const clientPayments = repayments.filter(r => r.clientId === client.id && !r.isVoid);
+    const totalPaid = clientPayments.reduce((sum, p) => sum + p.amount, 0);
+    const currentBalance = Math.max(0, totalPayable - totalPaid);
+    const isFullyPaid = (totalPayable > 0 && currentBalance <= 0);
+
+    let isArrears = false;
+    let daysOverdue = 0;
+
+    if (client.status === 'ACTIVE' && !isFullyPaid && client.firstPaymentDate) {
+      const now = new Date();
+      let payDate = new Date(client.firstPaymentDate);
+      let cumulativeDue = 0;
+      let earliestMissedDueDate = null;
+
+      for (let i = 1; i <= periods; i++) {
+        cumulativeDue += periodPayment;
+        if (payDate < now) {
+          if (totalPaid < (cumulativeDue - 0.01)) {
+            isArrears = true;
+            if (!earliestMissedDueDate) {
+              earliestMissedDueDate = new Date(payDate);
+            }
+          }
+        }
+        payDate.setDate(payDate.getDate() + 15);
+      }
+
+      if (isArrears && earliestMissedDueDate) {
+        const diffTime = Math.abs(now - earliestMissedDueDate);
+        daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      }
+    }
+
+    return { totalPayable, totalPaid, currentBalance, isFullyPaid, isArrears, daysOverdue, paymentCount: clientPayments.length, totalInterest };
+  }
+
+  function updateStatusOverviewMetrics() {
+    let activeCount = 0, activeBal = 0;
+    let arrearsCount = 0, arrearsBal = 0;
+    let closedCount = 0, closedPaid = 0;
+    let pendingCount = 0, pendingPrincipal = 0;
+
+    clients.forEach(c => {
+      if (c.status === 'CANCELLED') return;
+      const bal = getClientBalanceInfo(c);
+
+      if (c.status === 'PENDING') {
+        pendingCount++;
+        pendingPrincipal += c.principal;
+      } else if (bal.isFullyPaid) {
+        closedCount++;
+        closedPaid += bal.totalPaid;
+      } else if (bal.isArrears) {
+        arrearsCount++;
+        arrearsBal += bal.currentBalance;
+      } else {
+        activeCount++;
+        activeBal += bal.currentBalance;
+      }
+    });
+
+    document.getElementById('summary-active-count').textContent = `${activeCount} Loans`;
+    document.getElementById('summary-active-bal').textContent = `Bal: ${formatPHP(activeBal)}`;
+
+    document.getElementById('summary-arrears-count').textContent = `${arrearsCount} Loans`;
+    document.getElementById('summary-arrears-bal').textContent = `Bal: ${formatPHP(arrearsBal)}`;
+
+    document.getElementById('summary-closed-count').textContent = `${closedCount} Loans`;
+    document.getElementById('summary-closed-amount').textContent = `Paid: ${formatPHP(closedPaid)}`;
+
+    document.getElementById('summary-pending-count').textContent = `${pendingCount} Loans`;
+    document.getElementById('summary-pending-principal').textContent = `Amount: ${formatPHP(pendingPrincipal)}`;
+  }
+
+  document.getElementById('card-summary-active').addEventListener('click', () => { document.getElementById('filter-status').value = 'ACTIVE_ON_TIME'; renderClients(); });
+  document.getElementById('card-summary-arrears').addEventListener('click', () => { document.getElementById('filter-status').value = 'IN_ARREARS'; renderClients(); });
+  document.getElementById('card-summary-closed').addEventListener('click', () => { document.getElementById('filter-status').value = 'CLOSED'; renderClients(); });
+  document.getElementById('card-summary-pending').addEventListener('click', () => { document.getElementById('filter-status').value = 'PENDING'; renderClients(); });
+
+  function renderClients(list = clients) {
+    updateStatusOverviewMetrics();
+
+    const clientsList = document.getElementById('clients-list');
+    const clientCount = document.getElementById('client-count');
+    const repaySelect = document.getElementById('repay-client-select');
+    const statusFilter = document.getElementById('filter-status').value;
+    const searchQuery = document.getElementById('search-clients').value.toLowerCase();
+
+    clientsList.innerHTML = '';
+    repaySelect.innerHTML = '<option value="">-- Choose Client --</option>';
+
+    const filteredList = list.filter(c => {
+      if (c.status === 'CANCELLED') return false;
+      
+      const balInfo = getClientBalanceInfo(c);
+      let computedStatus = c.status;
+      if (c.status === 'ACTIVE') {
+        if (balInfo.isFullyPaid) computedStatus = 'CLOSED';
+        else if (balInfo.isArrears) computedStatus = 'IN_ARREARS';
+        else computedStatus = 'ACTIVE_ON_TIME';
+      }
+
+      const matchesStatus = (statusFilter === 'ALL' || computedStatus === statusFilter);
+      const matchesSearch = c.name.toLowerCase().includes(searchQuery) || c.address.toLowerCase().includes(searchQuery);
+      return matchesStatus && matchesSearch;
+    });
+
+    const activeVisibleList = clients.filter(c => c.status !== 'CANCELLED');
+    clientCount.textContent = `${filteredList.length} shown (${activeVisibleList.length} total)`;
+
+    if (filteredList.length === 0) {
+      clientsList.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">No matching borrower records found.</p>';
+    }
+
+    activeVisibleList.forEach(c => {
+      const balInfo = getClientBalanceInfo(c);
+      if (c.status === 'ACTIVE' && !balInfo.isFullyPaid) {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.name} (Bal: ${formatPHP(balInfo.currentBalance)})`;
+        repaySelect.appendChild(opt);
+      }
+    });
+
+    filteredList.forEach(c => {
+      const balInfo = getClientBalanceInfo(c);
+      
+      let statusBadge = '';
+      if (balInfo.isFullyPaid) {
+        statusBadge = '<span class="text-[9px] px-2 py-0.5 bg-slate-800 text-slate-300 border border-slate-700 rounded-full font-bold">CLOSED (PAID)</span>';
+      } else if (c.status === 'PENDING') {
+        statusBadge = '<span class="text-[9px] px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full font-bold">PENDING APPROVAL</span>';
+      } else if (balInfo.isArrears) {
+        statusBadge = `<span class="text-[9px] px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full font-bold">IN ARREARS (${balInfo.daysOverdue}D OVERDUE)</span>`;
+      } else {
+        statusBadge = '<span class="text-[9px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full font-bold">ACTIVE (ON TIME)</span>';
+      }
+
+      let actionButtons = '';
+      if (c.status === 'PENDING') {
+        actionButtons = `
+          <div class="flex items-center gap-1">
+            <button data-id="${c.id}" type="button" class="btn-approve-client px-2 py-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 rounded-lg transition inline-flex items-center gap-1" title="Approve Loan (Admin PIN)">
+              <i data-lucide="shield-check" class="w-3 h-3"></i> Approve
+            </button>
+            <button data-id="${c.id}" type="button" class="btn-cancel-client px-2 py-1 text-[10px] font-medium text-rose-400 bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 rounded-lg transition" title="Cancel Loan">
+              Cancel
+            </button>
+          </div>
+        `;
+      }
+
+      const div = document.createElement('div');
+      div.className = `p-3 bg-slate-900/80 hover:bg-slate-800 border ${activeClient?.id === c.id ? 'border-emerald-500 bg-slate-800' : 'border-slate-800'} rounded-xl cursor-pointer transition flex items-center justify-between group`;
+      div.innerHTML = `
+        <div class="space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="text-xs font-bold text-slate-100 group-hover:text-emerald-400 transition">${c.name}</p>
+            ${statusBadge}
+          </div>
+          <p class="text-[10px] text-slate-400 truncate max-w-[180px]">${c.address}</p>
+          <p class="text-[10px] text-emerald-400 font-mono">${formatPHP(c.principal)} • ${c.term} Months • Bal: ${formatPHP(balInfo.currentBalance)}</p>
+        </div>
+        <div>${actionButtons}</div>
+      `;
+
+      div.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-approve-client') || e.target.closest('.btn-cancel-client')) return;
+        activeClient = c;
+        const isReloan = c.loanType === 'RELOAN';
+        document.querySelector(`input[name="loan-type"][value="${isReloan ? 'RELOAN' : 'NEW'}"]`).checked = true;
+        if (isReloan) {
+          containerNameInput.classList.add('hidden');
+          containerNameSelect.classList.remove('hidden');
+          clientSelectExisting.value = c.name;
+        } else {
+          containerNameSelect.classList.add('hidden');
+          containerNameInput.classList.remove('hidden');
+          clientNameInput.value = c.name;
+        }
+        clientAddress.value = c.address;
+        clientContact.value = c.contact || '';
+        clientComaker.value = c.comaker || '';
+        loanAmount.value = c.principal;
+        loanTerm.value = c.term;
+        disbursementDate.value = c.disbursementDate;
+        firstPaymentDate.value = c.firstPaymentDate;
+        recalculate();
+        renderClients();
+      });
+
+      clientsList.appendChild(div);
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  document.getElementById('filter-status').addEventListener('change', () => renderClients());
+  document.getElementById('search-clients').addEventListener('input', () => renderClients());
+
+  const repayClientSelect = document.getElementById('repay-client-select');
+  repayClientSelect.addEventListener('change', () => {
+    const selectedId = repayClientSelect.value;
+    const client = clients.find(c => c.id === selectedId);
+    renderRepaymentLedger(client);
+  });
+
+  function renderRepaymentLedger(client) {
+    const summaryBox = document.getElementById('repay-account-summary');
+    const ledgerTbody = document.getElementById('repay-ledger-tbody');
+    const ledgerName = document.getElementById('ledger-client-name');
+
+    if (!client) {
+      summaryBox.classList.add('hidden');
+      ledgerTbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-500 font-sans">No payment records found. Select an active borrower above.</td></tr>';
+      ledgerName.textContent = 'Select an active borrower to view statement';
+      return;
+    }
+
+    summaryBox.classList.remove('hidden');
+    ledgerName.textContent = `${client.name} — ${client.address}`;
+
+    const clientPayments = repayments.filter(r => r.clientId === client.id).sort((a,b) => new Date(a.date) - new Date(b.date));
+    const balInfo = getClientBalanceInfo(client);
+
+    document.getElementById('repay-sum-total').textContent = formatPHP(balInfo.totalPayable);
+    document.getElementById('repay-sum-paid').textContent = formatPHP(balInfo.totalPaid);
+    document.getElementById('repay-sum-bal').textContent = formatPHP(balInfo.currentBalance);
+
+    ledgerTbody.innerHTML = '';
+    const stmtTbody = document.getElementById('print-stmt-tbody');
+    stmtTbody.innerHTML = '';
+
+    let runningBal = balInfo.totalPayable;
+
+    if (clientPayments.length === 0) {
+      ledgerTbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-500 font-sans">No payment entries posted yet.</td></tr>';
+    } else {
+      clientPayments.forEach(p => {
+        if (!p.isVoid) {
+          runningBal -= p.amount;
+          if (runningBal < 0) runningBal = 0;
+        }
+
+        const tr = document.createElement('tr');
+        if (p.isVoid) {
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-slate-500 line-through">${p.date}</td>
+            <td class="py-2.5 px-3 text-slate-500 line-through">${p.ref || 'N/A'}</td>
+            <td class="py-2.5 px-3 text-right text-rose-500/80 line-through">${formatPHP(p.amount)} <span class="text-[9px] px-1.5 py-0.5 bg-rose-500/20 text-rose-400 rounded font-sans not-italic font-bold ml-1">VOIDED</span></td>
+            <td class="py-2.5 px-3 text-right text-slate-500 font-sans italic">-- (Voided)</td>
+          `;
+        } else {
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-slate-200">${p.date}</td>
+            <td class="py-2.5 px-3 text-slate-400">${p.ref || 'N/A'}</td>
+            <td class="py-2.5 px-3 text-right text-emerald-400 font-bold">${formatPHP(p.amount)}</td>
+            <td class="py-2.5 px-3 text-right text-slate-300">${formatPHP(runningBal)}</td>
+          `;
+        }
+        ledgerTbody.appendChild(tr);
+
+        if (!p.isVoid) {
+          const printTr = document.createElement('tr');
+          printTr.innerHTML = `
+            <td class="py-1 px-2">${p.date}</td>
+            <td class="py-1 px-2">${p.ref || 'N/A'}</td>
+            <td class="py-1 px-2 text-right font-bold">${formatPHP(p.amount)}</td>
+            <td class="py-1 px-2 text-right">${formatPHP(runningBal)}</td>
+          `;
+          stmtTbody.appendChild(printTr);
+        }
+      });
+    }
+
+    document.getElementById('print-stmt-name').textContent = client.name;
+    document.getElementById('print-stmt-address').textContent = client.address;
+    document.getElementById('print-stmt-principal').textContent = formatPHP(balInfo.totalPayable);
+    document.getElementById('print-stmt-balance').textContent = formatPHP(balInfo.currentBalance);
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function generateRangeReport() {
+    const start = document.getElementById('range-start-date').value;
+    const end = document.getElementById('range-end-date').value;
+    const reportType = document.getElementById('range-report-type').value;
+
+    const metricsStandard = document.getElementById('metrics-standard');
+    const metricsStatusSummary = document.getElementById('metrics-status-summary');
+    const containerDisb = document.getElementById('container-range-disbursements');
+    const containerColl = document.getElementById('container-range-collections');
+    const collThead = document.getElementById('collections-thead');
+
+    const metricTitle1 = document.getElementById('metric-title-1');
+    const metricTitle2 = document.getElementById('metric-title-2');
+    const metricTitle3 = document.getElementById('metric-title-3');
+    const metricSub3 = document.getElementById('metric-subtitle-3');
+
+    if (reportType === 'CAPITAL_DEPOSITS') {
+      metricsStandard.classList.remove('hidden');
+      metricsStatusSummary.classList.add('hidden');
+      containerDisb.classList.add('hidden');
+      containerColl.classList.remove('hidden');
+      containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+      containerColl.querySelector('h3').innerHTML = `<i data-lucide="landmark" class="w-4 h-4 text-emerald-400"></i> Capital Deposits & Investments Log`;
+
+      metricTitle1.textContent = "Total Capital Deposited";
+      metricTitle2.textContent = "Number of Deposits";
+      metricTitle3.textContent = "Net Capital Added";
+      metricSub3.textContent = "Selected Date Range";
+
+      collThead.innerHTML = `
+        <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+          <th class="py-2 px-2">Date</th>
+          <th class="py-2 px-2">Investor / Particulars</th>
+          <th class="py-2 px-2">Ref No.</th>
+          <th class="py-2 px-2 text-right text-emerald-400 font-bold">Amount</th>
+          <th class="py-2 px-2 text-center">Action (Secure PIN)</th>
+        </tr>
+      `;
+
+      const filteredDeposits = capitalDeposits.filter(d => d.date >= start && d.date <= end);
+      const totalDepAmount = filteredDeposits.reduce((acc, d) => acc + d.amount, 0);
+
+      document.getElementById('range-total-released').textContent = formatPHP(totalDepAmount);
+      document.getElementById('range-count-released').textContent = `Total Deposits`;
+      document.getElementById('range-total-collected').textContent = `${filteredDeposits.length} Entries`;
+      document.getElementById('range-count-collected').textContent = `Deposit Count`;
+      document.getElementById('range-net-flow').textContent = formatPHP(totalDepAmount);
+
+      const collTbody = document.getElementById('range-collections-tbody');
+      collTbody.innerHTML = '';
+
+      if (filteredDeposits.length === 0) {
+        collTbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No capital deposits found in date range.</td></tr>';
+      } else {
+        filteredDeposits.forEach(d => {
+          const actionCol = `
+            <button data-id="${d.id}" data-particulars="${d.particulars}" type="button" class="btn-delete-deposit-pin px-2.5 py-1 text-[10px] font-bold text-rose-400 bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 rounded-lg transition inline-flex items-center gap-1" title="Delete Capital Deposit with PIN">
+              <i data-lucide="lock" class="w-3 h-3"></i> Delete
+            </button>
+          `;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="py-2 px-2">${d.date}</td>
+            <td class="py-2 px-2 font-bold text-slate-200">${d.particulars}</td>
+            <td class="py-2 px-2 text-slate-400">${d.ref || 'N/A'}</td>
+            <td class="py-2 px-2 text-right text-emerald-400 font-bold font-mono">${formatPHP(d.amount)}</td>
+            <td class="py-2 px-2 text-center">${actionCol}</td>
+          `;
+          collTbody.appendChild(tr);
+        });
+      }
+
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    if (reportType === 'STATUS_SUMMARY') {
+      metricsStandard.classList.add('hidden');
+      metricsStatusSummary.classList.remove('hidden');
+      containerDisb.classList.add('hidden');
+      containerColl.classList.remove('hidden');
+      containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+
+      let pending = 0, onTime = 0, arrears = 0, closed = 0;
+      clients.forEach(c => {
+        if (c.status === 'CANCELLED') return;
+        const bal = getClientBalanceInfo(c);
+        if (c.status === 'PENDING') pending++;
+        else if (bal.isFullyPaid) closed++;
+        else if (bal.isArrears) arrears++;
+        else onTime++;
+      });
+
+      document.getElementById('stat-count-pending').textContent = pending;
+      document.getElementById('stat-count-ontime').textContent = onTime;
+      document.getElementById('stat-count-arrears').textContent = arrears;
+      document.getElementById('stat-count-closed').textContent = closed;
+
+      containerColl.querySelector('h3').innerHTML = `<i data-lucide="users" class="w-4 h-4 text-emerald-400"></i> Active Loan Status Breakdown & Management`;
+      
+      collThead.innerHTML = `
+        <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+          <th class="py-2 px-2">Borrower</th>
+          <th class="py-2 px-2">Address</th>
+          <th class="py-2 px-2">Status</th>
+          <th class="py-2 px-2 text-right">Balance</th>
+          <th class="py-2 px-2 text-center">Action (Secure PIN)</th>
+        </tr>
+      `;
+
+      const collTbody = document.getElementById('range-collections-tbody');
+      collTbody.innerHTML = '';
+
+      const visibleClients = clients.filter(c => c.status !== 'CANCELLED');
+      if (visibleClients.length === 0) {
+        collTbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No client records found.</td></tr>';
+      } else {
+        visibleClients.forEach(c => {
+          const bal = getClientBalanceInfo(c);
+          let statLabel = 'Active (On Time)';
+          let statColor = 'text-emerald-400';
+          if (c.status === 'PENDING') { statLabel = 'Pending'; statColor = 'text-amber-400'; }
+          else if (bal.isFullyPaid) { statLabel = 'Closed (Paid)'; statColor = 'text-slate-400'; }
+          else if (bal.isArrears) { statLabel = `In Arrears (${bal.daysOverdue}D Overdue)`; statColor = 'text-rose-400'; }
+
+          const actionCol = `
+            <button data-id="${c.id}" data-name="${c.name}" type="button" class="btn-delete-client-pin px-2.5 py-1 text-[10px] font-bold text-rose-400 bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 rounded-lg transition inline-flex items-center gap-1" title="Delete with PIN">
+              <i data-lucide="lock" class="w-3 h-3"></i> Delete
+            </button>
+          `;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="py-2 px-2 font-bold text-slate-200">${c.name}</td>
+            <td class="py-2 px-2 text-slate-400">${c.address}</td>
+            <td class="py-2 px-2 font-bold ${statColor}">${statLabel}</td>
+            <td class="py-2 px-2 text-right font-mono">${formatPHP(bal.currentBalance)}</td>
+            <td class="py-2 px-2 text-center">${actionCol}</td>
+          `;
+          collTbody.appendChild(tr);
+        });
+      }
+
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    if (reportType === 'REMAINING_COLLECTABLES') {
+      metricsStandard.classList.remove('hidden');
+      metricsStatusSummary.classList.add('hidden');
+      containerDisb.classList.add('hidden');
+      containerColl.classList.remove('hidden');
+      containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+      containerColl.querySelector('h3').innerHTML = `<i data-lucide="wallet" class="w-4 h-4 text-emerald-400"></i> Outstanding Collectables & Remaining Receivables Breakdown`;
+
+      metricTitle1.textContent = "Remaining Principal";
+      metricTitle2.textContent = "Remaining Interest";
+      metricTitle3.textContent = "Total Outstanding Balance";
+      metricSub3.textContent = "Total Collectable from Clients";
+
+      collThead.innerHTML = `
+        <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+          <th class="py-2 px-2">Borrower</th>
+          <th class="py-2 px-2">Status</th>
+          <th class="py-2 px-2 text-right">Original Principal</th>
+          <th class="py-2 px-2 text-right">Total Paid</th>
+          <th class="py-2 px-2 text-right text-blue-400 font-bold">Rem. Principal</th>
+          <th class="py-2 px-2 text-right text-amber-400 font-bold">Rem. Interest</th>
+          <th class="py-2 px-2 text-right text-purple-300 font-bold">Total Balance</th>
+        </tr>
+      `;
+
+      let sumRemPrincipal = 0;
+      let sumRemInterest = 0;
+      let sumTotalBalance = 0;
+      let collectableRows = [];
+
+      clients.forEach(c => {
+        if (c.status === 'CANCELLED' || c.status === 'PENDING') return;
+        const bal = getClientBalanceInfo(c);
+        if (bal.isFullyPaid) return;
+
+        const principal = c.principal;
+        const totalPayable = bal.totalPayable;
+        const totalInterest = bal.totalInterest;
+        const currentBal = bal.currentBalance;
+
+        let remPrincipal = 0;
+        let remInterest = 0;
+
+        if (totalPayable > 0 && currentBal > 0) {
+          const pRatio = principal / totalPayable;
+          const iRatio = totalInterest / totalPayable;
+          remPrincipal = currentBal * pRatio;
+          remInterest = currentBal * iRatio;
+        }
+
+        sumRemPrincipal += remPrincipal;
+        sumRemInterest += remInterest;
+        sumTotalBalance += currentBal;
+
+        collectableRows.push({
+          name: c.name,
+          status: bal.isArrears ? 'In Arrears' : 'Active (On Time)',
+          principal,
+          totalPaid: bal.totalPaid,
+          remPrincipal,
+          remInterest,
+          currentBal
+        });
+      });
+
+      document.getElementById('range-total-released').textContent = formatPHP(sumRemPrincipal);
+      document.getElementById('range-count-released').textContent = `Principal Receivable`;
+      document.getElementById('range-total-collected').textContent = formatPHP(sumRemInterest);
+      document.getElementById('range-count-collected').textContent = `Interest Receivable`;
+      document.getElementById('range-net-flow').textContent = formatPHP(sumTotalBalance);
+
+      const collTbody = document.getElementById('range-collections-tbody');
+      collTbody.innerHTML = '';
+
+      if (collectableRows.length === 0) {
+        collTbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-slate-500">No active outstanding collectables found.</td></tr>';
+      } else {
+        collectableRows.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="py-2 px-2 font-bold text-slate-200">${row.name}</td>
+            <td class="py-2 px-2 text-slate-400">${row.status}</td>
+            <td class="py-2 px-2 text-right font-mono">${formatPHP(row.principal)}</td>
+            <td class="py-2 px-2 text-right font-mono text-emerald-400">${formatPHP(row.totalPaid)}</td>
+            <td class="py-2 px-2 text-right font-mono text-blue-400 font-bold">${formatPHP(row.remPrincipal)}</td>
+            <td class="py-2 px-2 text-right font-mono text-amber-400 font-bold">${formatPHP(row.remInterest)}</td>
+            <td class="py-2 px-2 text-right font-mono text-purple-300 font-bold">${formatPHP(row.currentBal)}</td>
+          `;
+          collTbody.appendChild(tr);
+        });
+      }
+
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    metricsStandard.classList.remove('hidden');
+    metricsStatusSummary.classList.add('hidden');
+
+    if (!start || !end) return;
+
+    const filteredDisb = (reportType === 'COLLECTIONS' || reportType === 'INTEREST_COLLECTED') ? [] : clients.filter(c => c.status === 'ACTIVE' && c.disbursementDate >= start && c.disbursementDate <= end);
+    const filteredColl = (reportType === 'DISBURSEMENTS') ? [] : repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid);
+
+    if (reportType === 'INTEREST_COLLECTED') {
+      metricTitle1.textContent = "Sponsor Share (60%)";
+      metricTitle2.textContent = "Worker Share (40%)";
+      metricTitle3.textContent = "Total Interest Collected";
+      metricSub3.textContent = "Gross Interest in Selected Period";
+
+      containerDisb.classList.add('hidden');
+      containerColl.classList.remove('hidden');
+      containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+      containerColl.querySelector('h3').innerHTML = `<i data-lucide="percent" class="w-4 h-4 text-emerald-400"></i> Interest Split, Principal & Total Collections Breakdown`;
+
+      collThead.innerHTML = `
+        <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+          <th class="py-2 px-2">Date</th>
+          <th class="py-2 px-2">Borrower</th>
+          <th class="py-2 px-2">OR Ref</th>
+          <th class="py-2 px-2 text-right text-emerald-400 font-bold">Total Paid</th>
+          <th class="py-2 px-2 text-right text-blue-300">Principal Paid</th>
+          <th class="py-2 px-2 text-right text-amber-400">Interest Collected</th>
+          <th class="py-2 px-2 text-right text-blue-400">Sponsor (60%)</th>
+          <th class="py-2 px-2 text-right text-emerald-400">Worker (40%)</th>
+          <th class="py-2 px-2 text-center">Action</th>
+        </tr>
+      `;
+
+      let totalInterestColl = 0;
+      let interestRows = [];
+
+      filteredColl.forEach(r => {
+        const c = clients.find(cl => cl.id === r.clientId);
+        if (!c) return;
+        const bal = getClientBalanceInfo(c);
+        const totalPayable = bal.totalPayable;
+        const totalInterest = bal.totalInterest;
+        const interestRatio = totalPayable > 0 ? (totalInterest / totalPayable) : 0;
+        const interestAmt = r.amount * interestRatio;
+        const principalPaid = r.amount - interestAmt;
+        
+        const sponsorShare = interestAmt * 0.60;
+        const workerShare = interestAmt * 0.40;
+
+        totalInterestColl += interestAmt;
+
+        interestRows.push({ ...r, clientName: c.name, totalPaid: r.amount, principalPaid, interestAmt, sponsorShare, workerShare });
+      });
+
+      const totalSponsor = totalInterestColl * 0.60;
+      const totalWorker = totalInterestColl * 0.40;
+
+      document.getElementById('range-total-released').textContent = formatPHP(totalSponsor);
+      document.getElementById('range-count-released').textContent = `60% Allocation`;
+      document.getElementById('range-total-collected').textContent = formatPHP(totalWorker);
+      document.getElementById('range-count-collected').textContent = `40% Allocation`;
+      document.getElementById('range-net-flow').textContent = formatPHP(totalInterestColl);
+
+      const collTbody = document.getElementById('range-collections-tbody');
+      collTbody.innerHTML = '';
+
+      if (interestRows.length === 0) {
+        collTbody.innerHTML = '<tr><td colspan="9" class="py-4 text-center text-slate-500">No collections found in date range.</td></tr>';
+      } else {
+        interestRows.forEach(r => {
+          const actionCol = `
+            <button data-id="${r.id}" data-name="${r.clientName}" type="button" class="btn-void-repay-pin px-2 py-1 text-[10px] font-bold text-rose-400 bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 rounded-lg transition inline-flex items-center gap-1" title="Void Collection with PIN">
+              <i data-lucide="lock" class="w-3 h-3"></i> Void
+            </button>
+          `;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="py-2 px-2">${r.date}</td>
+            <td class="py-2 px-2 font-bold text-slate-200">${r.clientName}</td>
+            <td class="py-2 px-2 text-slate-400">${r.ref || 'N/A'}</td>
+            <td class="py-2 px-2 text-right font-bold text-emerald-400 font-mono">${formatPHP(r.totalPaid)}</td>
+            <td class="py-2 px-2 text-right font-mono text-blue-300">${formatPHP(r.principalPaid)}</td>
+            <td class="py-2 px-2 text-right font-mono text-amber-400 font-bold">${formatPHP(r.interestAmt)}</td>
+            <td class="py-2 px-2 text-right font-mono text-blue-400 font-bold">${formatPHP(r.sponsorShare)}</td>
+            <td class="py-2 px-2 text-right font-mono text-emerald-400 font-bold">${formatPHP(r.workerShare)}</td>
+            <td class="py-2 px-2 text-center">${actionCol}</td>
+          `;
+          collTbody.appendChild(tr);
+        });
+      }
+
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    metricTitle1.textContent = "Total Loans Released";
+    metricTitle2.textContent = "Total Collections";
+    metricTitle3.textContent = "Net Cash Flow";
+    metricSub3.textContent = "Collections vs Releases";
+
+    containerDisb.querySelector('h3').innerHTML = `<i data-lucide="arrow-up-right" class="w-4 h-4 text-blue-400"></i> Disbursements in Selected Period`;
+    containerColl.querySelector('h3').innerHTML = `<i data-lucide="arrow-down-left" class="w-4 h-4 text-emerald-400"></i> Collections in Selected Period`;
+
+    collThead.innerHTML = `
+      <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase">
+        <th class="py-2 px-2">Date</th>
+        <th class="py-2 px-2">Borrower</th>
+        <th class="py-2 px-2">OR Ref</th>
+        <th class="py-2 px-2 text-right">Amount</th>
+        <th class="py-2 px-2 text-center">Action (Secure PIN)</th>
+      </tr>
+    `;
+
+    const totalDisb = filteredDisb.reduce((acc, c) => acc + c.principal, 0);
+    const totalColl = filteredColl.reduce((acc, r) => acc + r.amount, 0);
+    const netFlow = totalColl - totalDisb;
+
+    document.getElementById('range-total-released').textContent = formatPHP(totalDisb);
+    document.getElementById('range-count-released').textContent = `${filteredDisb.length} Disbursements`;
+    document.getElementById('range-total-collected').textContent = formatPHP(totalColl);
+    document.getElementById('range-count-collected').textContent = `${filteredColl.length} Collections`;
+    document.getElementById('range-net-flow').textContent = formatPHP(netFlow);
+
+    if (reportType === 'COLLECTIONS') {
+      containerDisb.classList.add('hidden');
+      containerColl.classList.remove('hidden');
+      containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+    } else if (reportType === 'DISBURSEMENTS') {
+      containerDisb.classList.remove('hidden');
+      containerDisb.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-2";
+      containerColl.classList.add('hidden');
+    } else {
+      containerDisb.classList.remove('hidden');
+      containerDisb.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-1";
+      containerColl.classList.remove('hidden');
+      containerColl.className = "bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3 lg:col-span-1";
+    }
+
+    const disbTbody = document.getElementById('range-disbursements-tbody');
+    disbTbody.innerHTML = '';
+    if (filteredDisb.length === 0) {
+      disbTbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-500">No releases found in date range.</td></tr>';
+    } else {
+      filteredDisb.forEach(c => {
+        const actionCol = `
+          <button data-id="${c.id}" data-name="${c.name}" type="button" class="btn-cancel-disb-pin px-2 py-1 text-[10px] font-bold text-rose-400 bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 rounded-lg transition inline-flex items-center gap-1" title="Cancel/Delete Disbursement with PIN">
+            <i data-lucide="lock" class="w-3 h-3"></i> Cancel
+          </button>
+        `;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-2">${c.disbursementDate}</td>
+          <td class="py-2 px-2 font-bold text-slate-200">${c.name}</td>
+          <td class="py-2 px-2 text-right text-blue-400 font-bold">${formatPHP(c.principal)}</td>
+          <td class="py-2 px-2 text-center">${actionCol}</td>
+        `;
+        disbTbody.appendChild(tr);
+      });
+    }
+
+    const collTbody = document.getElementById('range-collections-tbody');
+    collTbody.innerHTML = '';
+
+    if (filteredColl.length === 0) {
+      collTbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No collections found in date range.</td></tr>';
+    } else {
+      filteredColl.forEach(r => {
+        const c = clients.find(cl => cl.id === r.clientId);
+        const clientName = c ? c.name : 'Unknown';
+
+        const actionCol = `
+          <button data-id="${r.id}" data-name="${clientName}" type="button" class="btn-void-repay-pin px-2 py-1 text-[10px] font-bold text-rose-400 bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 rounded-lg transition inline-flex items-center gap-1" title="Void Collection with PIN">
+            <i data-lucide="lock" class="w-3 h-3"></i> Void
+          </button>
+        `;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-2">${r.date}</td>
+          <td class="py-2 px-2 font-bold text-slate-200">${clientName}</td>
+          <td class="py-2 px-2 text-slate-400">${r.ref || 'N/A'}</td>
+          <td class="py-2 px-2 text-right text-emerald-400 font-bold">${formatPHP(r.amount)}</td>
+          <td class="py-2 px-2 text-center">${actionCol}</td>
+        `;
+        collTbody.appendChild(tr);
+      });
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  document.getElementById('btn-filter-range').addEventListener('click', generateRangeReport);
+
+  function exportTableToCSV(filename, rows) {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    rows.forEach(function(rowArray) {
+      let row = rowArray.map(item => `"${String(item !== undefined && item !== null ? item : '').replace(/"/g, '""')}"`).join(",");
+      csvContent += row + "\r\n";
+    });
+    var encodedUri = encodeURI(csvContent);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  document.getElementById('btn-export-range-csv').addEventListener('click', () => {
+    const reportType = document.getElementById('range-report-type').value;
+    const start = document.getElementById('range-start-date').value;
+    const end = document.getElementById('range-end-date').value;
+    let rows = [];
+
+    if (reportType === 'CAPITAL_DEPOSITS') {
+      rows.push(["Date", "Investor / Particulars", "Ref No.", "Amount"]);
+      capitalDeposits.filter(d => d.date >= start && d.date <= end).forEach(d => {
+        rows.push([d.date, d.particulars, d.ref || 'N/A', d.amount]);
+      });
+    } else if (reportType === 'STATUS_SUMMARY') {
+      rows.push(["Borrower Name", "Address", "Status", "Current Balance"]);
+      clients.filter(c => c.status !== 'CANCELLED').forEach(c => {
+        const bal = getClientBalanceInfo(c);
+        let statLabel = 'Active (On Time)';
+        if (c.status === 'PENDING') statLabel = 'Pending Approval';
+        else if (bal.isFullyPaid) statLabel = 'Closed (Paid)';
+        else if (bal.isArrears) statLabel = `In Arrears (${bal.daysOverdue}D)`;
+        rows.push([c.name, c.address, statLabel, bal.currentBalance]);
+      });
+    } else if (reportType === 'REMAINING_COLLECTABLES') {
+      rows.push(["Borrower Name", "Status", "Original Principal", "Total Paid", "Remaining Principal", "Remaining Interest", "Total Balance"]);
+      clients.forEach(c => {
+        if (c.status === 'CANCELLED' || c.status === 'PENDING') return;
+        const bal = getClientBalanceInfo(c);
+        if (bal.isFullyPaid) return;
+        const remP = bal.currentBalance * (c.principal / bal.totalPayable);
+        const remI = bal.currentBalance * (bal.totalInterest / bal.totalPayable);
+        rows.push([c.name, bal.isArrears ? 'In Arrears' : 'Active', c.principal, bal.totalPaid, remP, remI, bal.currentBalance]);
+      });
+    } else if (reportType === 'INTEREST_COLLECTED') {
+      rows.push(["Date", "Borrower", "OR Ref", "Total Paid", "Principal Paid", "Interest Collected", "Sponsor Share (60%)", "Worker Share (40%)"]);
+      repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid).forEach(r => {
+        const c = clients.find(cl => cl.id === r.clientId);
+        if (!c) return;
+        const bal = getClientBalanceInfo(c);
+        const intRatio = bal.totalPayable > 0 ? (bal.totalInterest / bal.totalPayable) : 0;
+        const intAmt = r.amount * intRatio;
+        const principalPaid = r.amount - intAmt;
+        rows.push([r.date, c.name, r.ref || 'N/A', r.amount, principalPaid, intAmt, intAmt * 0.6, intAmt * 0.4]);
+      });
+    } else {
+      rows.push(["Date", "Type", "Borrower", "OR Ref", "Amount"]);
+      const filteredDisb = (reportType === 'COLLECTIONS') ? [] : clients.filter(c => c.status === 'ACTIVE' && c.disbursementDate >= start && c.disbursementDate <= end);
+      const filteredColl = (reportType === 'DISBURSEMENTS') ? [] : repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid);
+      filteredColl.forEach(r => {
+        const c = clients.find(cl => cl.id === r.clientId);
+        rows.push([r.date, "COLLECTION", c ? c.name : 'Unknown', r.ref || 'N/A', r.amount]);
+      });
+      filteredDisb.forEach(d => {
+        rows.push([d.disbursementDate, "DISBURSEMENT", d.name, "RELEASE", -d.principal]);
+      });
+    }
+
+    exportTableToCSV(`Summary_Report_${reportType}_${start}_to_${end}.csv`, rows);
+  });
+
+  document.getElementById('btn-export-capital-csv').addEventListener('click', () => {
+    const filterStart = document.getElementById('cap-filter-start').value;
+    const filterEnd = document.getElementById('cap-filter-end').value;
+    let rows = [
+      ["Date", "Transaction Type", "Particulars / Borrower", "Ref No.", "Money Out", "Money In", "Running Balance"]
+    ];
+    const tbody = document.getElementById('capital-ledger-tbody');
+    const trs = tbody.querySelectorAll('tr');
+    trs.forEach(tr => {
+      const tds = tr.querySelectorAll('td');
+      if (tds.length === 7) {
+        rows.push([
+          tds[0].innerText,
+          tds[1].innerText,
+          tds[2].innerText,
+          tds[3].innerText,
+          tds[4].innerText,
+          tds[5].innerText,
+          tds[6].innerText
+        ]);
+      }
+    });
+    exportTableToCSV(`Capital_Ledger_${filterStart}_to_${filterEnd}.csv`, rows);
+  });
+
+  function renderCapitalLedger() {
+    const startAmt = parseFloat(capitalConfig.amount) || 0;
+    const configStartDate = capitalConfig.startDate || today;
+
+    document.getElementById('card-cap-initial').textContent = formatPHP(startAmt);
+    document.getElementById('card-cap-date').textContent = `Start Date: ${configStartDate}`;
+
+    const filterStart = document.getElementById('cap-filter-start').value || firstDayOfCurrentMonth;
+    const filterEnd = document.getElementById('cap-filter-end').value || today;
+
+    document.getElementById('capital-ledger-subtitle').textContent = `Chronological audit trail from ${filterStart} to ${filterEnd}`;
+
+    let rawTransactions = [];
+
+    if (configStartDate && startAmt >= 0) {
+      rawTransactions.push({
+        date: configStartDate,
+        type: 'OPENING_CAPITAL',
+        particulars: 'Beginning Capital Fund',
+        ref: 'INIT',
+        moneyOut: 0,
+        moneyIn: startAmt
+      });
+    }
+
+    capitalDeposits.forEach(d => {
+      rawTransactions.push({
+        date: d.date,
+        type: 'CAPITAL_DEPOSIT',
+        particulars: `Capital Deposit: ${d.particulars}`,
+        ref: d.ref || 'DEP',
+        moneyOut: 0,
+        moneyIn: d.amount
+      });
+    });
+
+    clients.filter(c => c.status === 'ACTIVE').forEach(c => {
+      rawTransactions.push({
+        date: c.disbursementDate,
+        type: 'LOAN_DISBURSEMENT',
+        particulars: `Loan Release: ${c.name}`,
+        ref: 'RELEASE',
+        moneyOut: c.principal,
+        moneyIn: 0
+      });
+    });
+
+    repayments.filter(r => !r.isVoid).forEach(r => {
+      const c = clients.find(cl => cl.id === r.clientId);
+      rawTransactions.push({
+        date: r.date,
+        type: 'REPAYMENT_COLLECTION',
+        particulars: `Payment Received: ${c ? c.name : 'Unknown'}`,
+        ref: r.ref || 'COLL',
+        moneyOut: 0,
+        moneyIn: r.amount
+      });
+    });
+
+    rawTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let computedBeginBal = 0;
+    let totalOutInRange = 0;
+    let totalInInRange = 0;
+    let rangeTransactions = [];
+
+    rawTransactions.forEach(t => {
+      if (t.date < filterStart) {
+        if (t.type === 'OPENING_CAPITAL') {
+          computedBeginBal += t.moneyIn;
+        } else {
+          computedBeginBal = computedBeginBal - t.moneyOut + t.moneyIn;
+        }
+      } else if (t.date >= filterStart && t.date <= filterEnd) {
+        rangeTransactions.push(t);
+      }
+    });
+
+    const tbody = document.getElementById('capital-ledger-tbody');
+    const printTbody = document.getElementById('print-cap-tbody');
+    tbody.innerHTML = '';
+    printTbody.innerHTML = '';
+
+    let runningBal = computedBeginBal;
+
+    const beginTr = document.createElement('tr');
+    beginTr.className = "bg-slate-900/60 font-semibold";
+    beginTr.innerHTML = `
+      <td class="py-2.5 px-3 text-slate-300">${filterStart}</td>
+      <td class="py-2.5 px-3"><span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[9px] font-bold">BEGINNING BALANCE</span></td>
+      <td class="py-2.5 px-3 text-slate-200">Opening Balance as of ${filterStart}</td>
+      <td class="py-2.5 px-3 text-slate-500">-</td>
+      <td class="py-2.5 px-3 text-right text-slate-500">-</td>
+      <td class="py-2.5 px-3 text-right text-slate-500">-</td>
+      <td class="py-2.5 px-3 text-right font-bold text-purple-300 font-mono">${formatPHP(runningBal)}</td>
+    `;
+    tbody.appendChild(beginTr);
+
+    const printBeginTr = document.createElement('tr');
+    printBeginTr.className = "font-bold";
+    printBeginTr.innerHTML = `
+      <td class="py-1 px-1">${filterStart}</td>
+      <td class="py-1 px-1">BEGINNING BALANCE</td>
+      <td class="py-1 px-1">Opening Balance as of ${filterStart}</td>
+      <td class="py-1 px-1">-</td>
+      <td class="py-1 px-1 text-right">-</td>
+      <td class="py-1 px-1 text-right">-</td>
+      <td class="py-1 px-1 text-right font-bold">${formatPHP(runningBal)}</td>
+    `;
+    printTbody.appendChild(printBeginTr);
+
+    if (rangeTransactions.length > 0) {
+      rangeTransactions.forEach(t => {
+        runningBal = runningBal - t.moneyOut + t.moneyIn;
+        totalOutInRange += t.moneyOut;
+        totalInInRange += t.moneyIn;
+
+        let typeBadge = '';
+        if (t.type === 'OPENING_CAPITAL') typeBadge = '<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded text-[9px] font-bold">CAPITAL</span>';
+        else if (t.type === 'CAPITAL_DEPOSIT') typeBadge = '<span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[9px] font-bold">DEPOSIT</span>';
+        else if (t.type === 'LOAN_DISBURSEMENT') typeBadge = '<span class="px-2 py-0.5 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded text-[9px] font-bold">DISBURSEMENT</span>';
+        else typeBadge = '<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-bold">COLLECTION</span>';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-3 text-slate-200">${t.date}</td>
+          <td class="py-2 px-3">${typeBadge}</td>
+          <td class="py-2 px-3 font-semibold text-slate-100">${t.particulars}</td>
+          <td class="py-2 px-3 text-slate-400">${t.ref}</td>
+          <td class="py-2 px-3 text-right text-rose-400">${t.moneyOut > 0 ? formatPHP(t.moneyOut) : '-'}</td>
+          <td class="py-2 px-3 text-right text-emerald-400">${t.moneyIn > 0 ? formatPHP(t.moneyIn) : '-'}</td>
+          <td class="py-2 px-3 text-right font-bold text-purple-300 font-mono">${formatPHP(runningBal)}</td>
+        `;
+        tbody.appendChild(tr);
+
+        const printTr = document.createElement('tr');
+        printTr.innerHTML = `
+          <td class="py-1 px-1">${t.date}</td>
+          <td class="py-1 px-1">${t.type}</td>
+          <td class="py-1 px-1 font-bold">${t.particulars}</td>
+          <td class="py-1 px-1">${t.ref}</td>
+          <td class="py-1 px-1 text-right">${t.moneyOut > 0 ? formatPHP(t.moneyOut) : '-'}</td>
+          <td class="py-1 px-1 text-right">${t.moneyIn > 0 ? formatPHP(t.moneyIn) : '-'}</td>
+          <td class="py-1 px-1 text-right font-bold">${formatPHP(runningBal)}</td>
+        `;
+        printTbody.appendChild(printTr);
+      });
+    }
+
+    document.getElementById('card-cap-net-change').textContent = `Out: ${formatPHP(totalOutInRange)} | In: ${formatPHP(totalInInRange)}`;
+    document.getElementById('card-cap-running').textContent = formatPHP(runningBal);
+
+    document.getElementById('print-cap-date-range').textContent = `${filterStart} to ${filterEnd}`;
+    document.getElementById('print-cap-begin-bal').textContent = formatPHP(computedBeginBal);
+    document.getElementById('print-cap-running-bal').textContent = formatPHP(runningBal);
+  }
+
+  document.getElementById('btn-filter-capital').addEventListener('click', renderCapitalLedger);
+
+  document.getElementById('capital-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const startDate = document.getElementById('cap-start-date').value;
+    const amount = parseFloat(document.getElementById('cap-start-amount').value);
+
+    if (!startDate || isNaN(amount)) return;
+
+    const enteredPin = prompt("Enter Admin Secure PIN to update Beginning Capital:", "");
+    if (enteredPin === null) return;
+
+    if (enteredPin !== "1234") {
+      alert("Incorrect Secure PIN. Action aborted.");
+      return;
+    }
+
+    try {
+      await setDoc(doc(db, 'settings', 'capital'), {
+        startDate,
+        amount,
+        updatedAt: serverTimestamp()
+      });
+      alert('Beginning Capital successfully configured!');
+    } catch (err) {
+      alert('Error saving capital config: ' + err.message);
+    }
+  });
+
+  document.getElementById('capital-deposit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const date = document.getElementById('cap-deposit-date').value;
+    const amount = parseFloat(document.getElementById('cap-deposit-amount').value);
+    const particulars = document.getElementById('cap-deposit-particulars').value;
+    const ref = document.getElementById('cap-deposit-ref').value;
+
+    if (!date || isNaN(amount) || !particulars) return;
+
+    const enteredPin = prompt("Enter Admin Secure PIN to post capital deposit:", "");
+    if (enteredPin === null) return;
+
+    if (enteredPin !== "1234") {
+      alert("Incorrect Secure PIN. Action aborted.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'capital_deposits'), {
+        date,
+        amount,
+        particulars,
+        ref,
+        createdBy: currentUser.uid,
+        createdAt: serverTimestamp()
+      });
+      alert('Capital deposit posted successfully!');
+      document.getElementById('capital-deposit-form').reset();
+      document.getElementById('cap-deposit-date').value = today;
+    } catch (err) {
+      alert('Error posting capital deposit: ' + err.message);
+    }
+  });
+
+  document.getElementById('range-collections-tbody').addEventListener('click', async (e) => {
+    const voidBtn = e.target.closest('.btn-void-repay-pin');
+    const deleteClientBtn = e.target.closest('.btn-delete-client-pin');
+    const deleteDepositBtn = e.target.closest('.btn-delete-deposit-pin');
+
+    if (voidBtn) {
+      const repayId = voidBtn.getAttribute('data-id');
+      const clientName = voidBtn.getAttribute('data-name');
+      
+      const enteredPin = prompt(`Enter Admin Secure PIN to void collection for "${clientName}":`, "");
+      if (enteredPin === null) return;
+      
+      if (enteredPin !== "1234") {
+        alert("Incorrect Secure PIN. Action aborted.");
+        return;
+      }
+
+      if (confirm(`PIN verified. Void this collection entry? It will be marked as VOIDED but retained in the client's history for transparency.`)) {
+        try {
+          await updateDoc(doc(db, 'repayments', repayId), { isVoid: true });
+          alert("Collection successfully voided.");
+        } catch (err) {
+          alert('Error voiding collection: ' + err.message);
+        }
+      }
+    } else if (deleteClientBtn) {
+      const clientId = deleteClientBtn.getAttribute('data-id');
+      const clientName = deleteClientBtn.getAttribute('data-name');
+      
+      const enteredPin = prompt(`Enter Admin Secure PIN to delete client record "${clientName}":`, "");
+      if (enteredPin === null) return;
+      
+      if (enteredPin !== "1234") {
+        alert("Incorrect Secure PIN. Deletion aborted.");
+        return;
+      }
+
+      if (confirm(`PIN verified. Permanently delete client record "${clientName}"?`)) {
+        try {
+          await deleteDoc(doc(db, 'clients', clientId));
+          alert(`Client "${clientName}" permanently deleted.`);
+        } catch (err) {
+          alert('Error deleting client record: ' + err.message);
+        }
+      }
+    } else if (deleteDepositBtn) {
+      const depositId = deleteDepositBtn.getAttribute('data-id');
+      const particulars = deleteDepositBtn.getAttribute('data-particulars');
+
+      const enteredPin = prompt(`Enter Admin Secure PIN to delete capital deposit "${particulars}":`, "");
+      if (enteredPin === null) return;
+
+      if (enteredPin !== "1234") {
+        alert("Incorrect Secure PIN. Deletion aborted.");
+        return;
+      }
+
+      if (confirm(`PIN verified. Permanently delete capital deposit "${particulars}"?`)) {
+        try {
+          await deleteDoc(doc(db, 'capital_deposits', depositId));
+          alert("Capital deposit successfully deleted.");
+        } catch (err) {
+          alert('Error deleting capital deposit: ' + err.message);
+        }
+      }
+    }
+  });
+
+  document.getElementById('range-disbursements-tbody').addEventListener('click', async (e) => {
+    const cancelDisbBtn = e.target.closest('.btn-cancel-disb-pin');
+    if (cancelDisbBtn) {
+      const clientId = cancelDisbBtn.getAttribute('data-id');
+      const clientName = cancelDisbBtn.getAttribute('data-name');
+
+      const enteredPin = prompt(`Enter Admin Secure PIN to cancel disbursement for "${clientName}":`, "");
+      if (enteredPin === null) return;
+
+      if (enteredPin !== "1234") {
+        alert("Incorrect Secure PIN. Action aborted.");
+        return;
+      }
+
+      if (confirm(`PIN verified. Cancel loan disbursement for "${clientName}"?`)) {
+        try {
+          await updateDoc(doc(db, 'clients', clientId), { status: 'CANCELLED' });
+          alert("Loan disbursement cancelled successfully.");
+        } catch (err) {
+          alert('Error cancelling disbursement: ' + err.message);
+        }
+      }
+    }
+  });
+
+  function triggerPrint(viewId) {
+    const area = document.getElementById('printable-area');
+    const noteSchedView = document.getElementById('print-view-note-sched');
+    const stmtView = document.getElementById('print-view-statement');
+    const rangeSummaryView = document.getElementById('print-view-range-summary');
+    const capitalLedgerView = document.getElementById('print-view-capital-ledger');
+
+    [noteSchedView, stmtView, rangeSummaryView, capitalLedgerView].forEach(v => v.classList.add('hidden'));
+    document.getElementById(viewId).classList.remove('hidden');
+
+    area.classList.remove('hidden');
+    window.print();
+    area.classList.add('hidden');
+  }
+
+  document.getElementById('btn-print-note-sched').addEventListener('click', () => triggerPrint('print-view-note-sched'));
+  document.getElementById('btn-print-statement').addEventListener('click', () => triggerPrint('print-view-statement'));
+  document.getElementById('btn-print-capital-ledger').addEventListener('click', () => triggerPrint('print-view-capital-ledger'));
+  
+  document.getElementById('btn-print-range-summary').addEventListener('click', () => {
+    const start = document.getElementById('range-start-date').value;
+    const end = document.getElementById('range-end-date').value;
+    const reportType = document.getElementById('range-report-type').value;
+
+    const printTitle = document.getElementById('print-range-title');
+    const printDates = document.getElementById('print-range-dates');
+    const printMetricsBox = document.getElementById('print-range-metrics-box');
+    const printTableHeading = document.getElementById('print-range-table-heading');
+    const printTheadTr = document.getElementById('print-range-thead-tr');
+    const printCollTbody = document.getElementById('print-range-coll-tbody');
+    printCollTbody.innerHTML = '';
+
+    if (reportType === 'CAPITAL_DEPOSITS') {
+      printTitle.textContent = "CAPITAL DEPOSITS & INVESTMENTS REPORT";
+      printDates.textContent = `${start} to ${end}`;
+      printMetricsBox.classList.remove('hidden');
+      document.getElementById('print-metric-label-1').textContent = "Total Capital Deposited";
+      document.getElementById('print-metric-label-2').textContent = "Deposit Count";
+      document.getElementById('print-metric-label-3').textContent = "Net Capital Added";
+
+      printTableHeading.textContent = "Capital Deposits Log";
+      printTheadTr.innerHTML = `
+        <th class="py-1 px-1">Date</th>
+        <th class="py-1 px-1">Investor / Particulars</th>
+        <th class="py-1 px-1">Ref No.</th>
+        <th class="py-1 px-1 text-right">Amount</th>
+      `;
+
+      const filteredDeposits = capitalDeposits.filter(d => d.date >= start && d.date <= end);
+      const totalDep = filteredDeposits.reduce((acc, d) => acc + d.amount, 0);
+
+      document.getElementById('print-range-disb').textContent = formatPHP(totalDep);
+      document.getElementById('print-range-coll').textContent = `${filteredDeposits.length} Entries`;
+      document.getElementById('print-range-net').textContent = formatPHP(totalDep);
+
+      if (filteredDeposits.length === 0) {
+        printCollTbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center">No capital deposits found in date range.</td></tr>';
+      } else {
+        filteredDeposits.forEach(d => {
+          const printTr = document.createElement('tr');
+          printTr.innerHTML = `
+            <td class="py-1 px-1">${d.date}</td>
+            <td class="py-1 px-1 font-bold">${d.particulars}</td>
+            <td class="py-1 px-1">${d.ref || 'N/A'}</td>
+            <td class="py-1 px-1 text-right font-mono font-bold">${formatPHP(d.amount)}</td>
+          `;
+          printCollTbody.appendChild(printTr);
+        });
+      }
+    } else if (reportType === 'STATUS_SUMMARY') {
+      printTitle.textContent = "LOAN PORTFOLIO STATUS SUMMARY REPORT";
+      printDates.textContent = `Generated on ${new Date().toLocaleDateString('en-PH')}`;
+      printMetricsBox.classList.add('hidden');
+      printTableHeading.textContent = "Client Status Breakdown & Outstanding Balances";
+      printTheadTr.innerHTML = `
+        <th class="py-1 px-1">Borrower Name</th>
+        <th class="py-1 px-1">Address</th>
+        <th class="py-1 px-1">Status</th>
+        <th class="py-1 px-1 text-right">Balance</th>
+      `;
+
+      const visibleClients = clients.filter(c => c.status !== 'CANCELLED');
+      if (visibleClients.length === 0) {
+        printCollTbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center">No client records found.</td></tr>';
+      } else {
+        visibleClients.forEach(c => {
+          const bal = getClientBalanceInfo(c);
+          let statLabel = 'Active (On Time)';
+          if (c.status === 'PENDING') statLabel = 'Pending Approval';
+          else if (bal.isFullyPaid) statLabel = 'Closed (Paid)';
+          else if (bal.isArrears) statLabel = `In Arrears (${bal.daysOverdue}D)`;
+
+          const printTr = document.createElement('tr');
+          printTr.innerHTML = `
+            <td class="py-1 px-1 font-bold">${c.name}</td>
+            <td class="py-1 px-1">${c.address}</td>
+            <td class="py-1 px-1">${statLabel}</td>
+            <td class="py-1 px-1 text-right font-mono">${formatPHP(bal.currentBalance)}</td>
+          `;
+          printCollTbody.appendChild(printTr);
+        });
+      }
+    } else if (reportType === 'REMAINING_COLLECTABLES') {
+      printTitle.textContent = "OUTSTANDING COLLECTABLES & REMAINING RECEIVABLES REPORT";
+      printDates.textContent = `As of ${new Date().toLocaleDateString('en-PH')}`;
+      printMetricsBox.classList.remove('hidden');
+      document.getElementById('print-metric-label-1').textContent = "Remaining Principal";
+      document.getElementById('print-metric-label-2').textContent = "Remaining Interest";
+      document.getElementById('print-metric-label-3').textContent = "Total Outstanding Balance";
+
+      printTableHeading.textContent = "Borrower Outstanding Receivables Breakdown";
+      printTheadTr.innerHTML = `
+        <th class="py-1 px-1">Borrower Name</th>
+        <th class="py-1 px-1">Status</th>
+        <th class="py-1 px-1 text-right">Principal</th>
+        <th class="py-1 px-1 text-right">Total Paid</th>
+        <th class="py-1 px-1 text-right">Rem. Principal</th>
+        <th class="py-1 px-1 text-right">Rem. Interest</th>
+        <th class="py-1 px-1 text-right">Total Balance</th>
+      `;
+
+      let sumRP = 0, sumRI = 0, sumTB = 0;
+      clients.forEach(c => {
+        if (c.status === 'CANCELLED' || c.status === 'PENDING') return;
+        const bal = getClientBalanceInfo(c);
+        if (bal.isFullyPaid) return;
+
+        const principal = c.principal;
+        const totalPayable = bal.totalPayable;
+        const totalInterest = bal.totalInterest;
+        const currentBal = bal.currentBalance;
+
+        let remPrincipal = 0, remInterest = 0;
+        if (totalPayable > 0 && currentBal > 0) {
+          remPrincipal = currentBal * (principal / totalPayable);
+          remInterest = currentBal * (totalInterest / totalPayable);
+        }
+
+        sumRP += remPrincipal;
+        sumRI += remInterest;
+        sumTB += currentBal;
+
+        const printTr = document.createElement('tr');
+        printTr.innerHTML = `
+          <td class="py-1 px-1 font-bold">${c.name}</td>
+          <td class="py-1 px-1">${bal.isArrears ? 'In Arrears' : 'Active'}</td>
+          <td class="py-1 px-1 text-right font-mono">${formatPHP(principal)}</td>
+          <td class="py-1 px-1 text-right font-mono">${formatPHP(bal.totalPaid)}</td>
+          <td class="py-1 px-1 text-right font-mono font-bold">${formatPHP(remPrincipal)}</td>
+          <td class="py-1 px-1 text-right font-mono font-bold">${formatPHP(remInterest)}</td>
+          <td class="py-1 px-1 text-right font-mono font-bold">${formatPHP(currentBal)}</td>
+        `;
+        printCollTbody.appendChild(printTr);
+      });
+
+      document.getElementById('print-range-disb').textContent = formatPHP(sumRP);
+      document.getElementById('print-range-coll').textContent = formatPHP(sumRI);
+      document.getElementById('print-range-net').textContent = formatPHP(sumTB);
+    } else if (reportType === 'INTEREST_COLLECTED') {
+      printTitle.textContent = "INTEREST COLLECTED REPORT & TOTAL PAID (60% SPONSOR / 40% WORKER SPLIT)";
+      printDates.textContent = `${start} to ${end}`;
+      printMetricsBox.classList.remove('hidden');
+      document.getElementById('print-metric-label-1').textContent = "Sponsor Share (60%)";
+      document.getElementById('print-metric-label-2').textContent = "Worker Share (40%)";
+      document.getElementById('print-metric-label-3').textContent = "Total Interest Collected";
+
+      printTableHeading.textContent = "Interest Collection, Principal & Total Collections Split Log";
+      printTheadTr.innerHTML = `
+        <th class="py-1 px-1">Date</th>
+        <th class="py-1 px-1">Borrower</th>
+        <th class="py-1 px-1">OR Ref</th>
+        <th class="py-1 px-1 text-right">Total Paid</th>
+        <th class="py-1 px-1 text-right">Principal Paid</th>
+        <th class="py-1 px-1 text-right">Interest Collected</th>
+        <th class="py-1 px-1 text-right">Sponsor (60%)</th>
+        <th class="py-1 px-1 text-right">Worker (40%)</th>
+      `;
+
+      const filteredColl = repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid);
+      let totalInt = 0;
+      filteredColl.forEach(r => {
+        const c = clients.find(cl => cl.id === r.clientId);
+        if (!c) return;
+        const bal = getClientBalanceInfo(c);
+        const intRatio = bal.totalPayable > 0 ? (bal.totalInterest / bal.totalPayable) : 0;
+        const intAmt = r.amount * intRatio;
+        const principalPaid = r.amount - intAmt;
+
+        const sponsor = intAmt * 0.60;
+        const worker = intAmt * 0.40;
+        totalInt += intAmt;
+
+        const printTr = document.createElement('tr');
+        printTr.innerHTML = `
+          <td class="py-1 px-1">${r.date}</td>
+          <td class="py-1 px-1">${c.name}</td>
+          <td class="py-1 px-1">${r.ref || 'N/A'}</td>
+          <td class="py-1 px-1 text-right font-bold">${formatPHP(r.amount)}</td>
+          <td class="py-1 px-1 text-right">${formatPHP(principalPaid)}</td>
+          <td class="py-1 px-1 text-right font-bold">${formatPHP(intAmt)}</td>
+          <td class="py-1 px-1 text-right">${formatPHP(sponsor)}</td>
+          <td class="py-1 px-1 text-right">${formatPHP(worker)}</td>
+        `;
+        printCollTbody.appendChild(printTr);
+      });
+
+      document.getElementById('print-range-disb').textContent = formatPHP(totalInt * 0.60);
+      document.getElementById('print-range-coll').textContent = formatPHP(totalInt * 0.40);
+      document.getElementById('print-range-net').textContent = formatPHP(totalInt);
+    } else {
+      printTitle.textContent = "SUMMARY TRANSACTION REPORT (" + reportType + ")";
+      printDates.textContent = `${start} to ${end}`;
+      printMetricsBox.classList.remove('hidden');
+      document.getElementById('print-metric-label-1').textContent = "Total Disbursements";
+      document.getElementById('print-metric-label-2').textContent = "Total Collections";
+      document.getElementById('print-metric-label-3').textContent = "Net Cash Flow";
+
+      printTableHeading.textContent = "Transactions Log";
+      printTheadTr.innerHTML = `
+        <th class="py-1 px-1">Date</th>
+        <th class="py-1 px-1">Type</th>
+        <th class="py-1 px-1">Borrower</th>
+        <th class="py-1 px-1">OR / Ref</th>
+        <th class="py-1 px-1 text-right">Amount</th>
+      `;
+
+      const filteredDisb = (reportType === 'COLLECTIONS') ? [] : clients.filter(c => c.status === 'ACTIVE' && c.disbursementDate >= start && c.disbursementDate <= end);
+      const filteredColl = (reportType === 'DISBURSEMENTS') ? [] : repayments.filter(r => r.date >= start && r.date <= end && !r.isVoid);
+
+      const totalDisb = filteredDisb.reduce((acc, c) => acc + c.principal, 0);
+      const totalColl = filteredColl.reduce((acc, r) => acc + r.amount, 0);
+      const netFlow = totalColl - totalDisb;
+
+      document.getElementById('print-range-disb').textContent = formatPHP(totalDisb);
+      document.getElementById('print-range-coll').textContent = formatPHP(totalColl);
+      document.getElementById('print-range-net').textContent = formatPHP(netFlow);
+
+      if (filteredColl.length === 0 && filteredDisb.length === 0) {
+        printCollTbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center">No entries found in date range.</td></tr>';
+      } else {
+        filteredColl.forEach(r => {
+          const c = clients.find(cl => cl.id === r.clientId);
+          const clientName = c ? c.name : 'Unknown';
+          const printTr = document.createElement('tr');
+          printTr.innerHTML = `<td class="py-1 px-1">${r.date}</td><td class="py-1 px-1">COLLECTION</td><td class="py-1 px-1">${clientName}</td><td class="py-1 px-1">${r.ref || 'N/A'}</td><td class="py-1 px-1 text-right font-bold">${formatPHP(r.amount)}</td>`;
+          printCollTbody.appendChild(printTr);
+        });
+
+        filteredDisb.forEach(d => {
+          const printTr = document.createElement('tr');
+          printTr.innerHTML = `<td class="py-1 px-1">${d.disbursementDate}</td><td class="py-1 px-1">DISBURSEMENT</td><td class="py-1 px-1">${d.name}</td><td class="py-1 px-1">RELEASE</td><td class="py-1 px-1 text-right font-bold">(${formatPHP(d.principal)})</td>`;
+          printCollTbody.appendChild(printTr);
+        });
+      }
+    }
+
+    triggerPrint('print-view-range-summary');
+  });
+
+  onAuthStateChanged(auth, async (user) => {
+    currentUser = user;
+    if (user) {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      document.getElementById('user-display-name').textContent = user.displayName || user.email.split('@')[0];
+      document.getElementById('user-display-email').textContent = user.email;
+
+      const userPresenceRef = doc(db, 'presence', user.uid);
+      const updatePresence = async () => {
+        try {
+          await setDoc(userPresenceRef, {
+            uid: user.uid,
+            name: user.displayName || user.email.split('@')[0],
+            email: user.email,
+            lastActive: serverTimestamp()
+          }, { merge: true });
+        } catch (err) {
+          console.error("Presence update error:", err);
+        }
+      };
+      updatePresence();
+      if (presenceInterval) clearInterval(presenceInterval);
+      presenceInterval = setInterval(updatePresence, 30000);
+
+      onSnapshot(collection(db, 'presence'), (snapshot) => {
+        const now = new Date().getTime();
+        const activeList = [];
+        snapshot.docs.forEach(d => {
+          const data = d.data();
+          if (data.lastActive) {
+            const activeTime = data.lastActive.toMillis ? data.lastActive.toMillis() : new Date().getTime();
+            if ((now - activeTime) < 70000) {
+              activeList.push(data);
+            }
+          }
+        });
+        onlineUsersStore = activeList;
+        document.getElementById('online-users-count').textContent = `${activeList.length} online`;
+      });
+
+      onSnapshot(doc(db, 'settings', 'capital'), (snapshot) => {
+        if (snapshot.exists()) {
+          capitalConfig = snapshot.data();
+          document.getElementById('cap-start-date').value = capitalConfig.startDate || today;
+          document.getElementById('cap-start-amount').value = capitalConfig.amount || '';
+        }
+        renderCapitalLedger();
+      });
+
+      onSnapshot(query(collection(db, 'capital_deposits'), orderBy('createdAt', 'desc')), (snapshot) => {
+        capitalDeposits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderCapitalLedger();
+      });
+
+      onSnapshot(query(collection(db, 'clients'), orderBy('createdAt', 'desc')), (snapshot) => {
+        clients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderClients();
+        generateRangeReport();
+        renderCapitalLedger();
+        if (document.querySelector('input[name="loan-type"]:checked').value === 'RELOAN') {
+          populateExistingClientsDropdown();
+        }
+      });
+
+      onSnapshot(query(collection(db, 'repayments'), orderBy('createdAt', 'desc')), (snapshot) => {
+        repayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderClients();
+        if (repayClientSelect.value) {
+          const c = clients.find(cl => cl.id === repayClientSelect.value);
+          renderRepaymentLedger(c);
+        }
+        generateRangeReport();
+        renderCapitalLedger();
+      });
+
+    } else {
+      if (presenceInterval) clearInterval(presenceInterval);
+      document.getElementById('auth-overlay').classList.remove('hidden');
+    }
+  });
+
+  const authErrorMsg = document.getElementById('auth-error-msg');
+
+  document.getElementById('btn-google-login').addEventListener('click', async () => {
+    authErrorMsg.textContent = 'Connecting with Google...';
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      if (err.code === 'auth/popup-blocked-by-browser' || err.code === 'auth/cancelled-popup-request' || err.code === 'auth/operation-not-allowed') {
+        try {
+          authErrorMsg.textContent = 'Popup blocked. Redirecting to Google Sign-In...';
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectErr) {
+          authErrorMsg.textContent = redirectErr.message;
+        }
+      } else {
+        authErrorMsg.textContent = err.message;
+      }
+    }
+  });
+
+  document.getElementById('btn-login-email').addEventListener('click', async () => {
+    authErrorMsg.textContent = '';
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) {
+      authErrorMsg.textContent = 'Please enter both email and password.';
+      return;
+    }
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      authErrorMsg.textContent = err.message;
+    }
+  });
+
+  document.getElementById('btn-signup-email').addEventListener('click', async () => {
+    authErrorMsg.textContent = '';
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    if (!email || !password) {
+      authErrorMsg.textContent = 'Please enter both email and password.';
+      return;
+    }
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      authErrorMsg.textContent = err.message;
+    }
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
+
+  loanForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const loanType = document.querySelector('input[name="loan-type"]:checked').value;
+    const name = loanType === 'RELOAN' ? clientSelectExisting.value : clientNameInput.value;
+
+    if (!name) {
+      alert('Please enter the borrower full name.');
+      return;
+    }
+
+    const calc = calculateLoan();
+    if (calc.principal <= 0) {
+      alert('Please enter a valid loan amount.');
+      return;
+    }
+
+    const newClient = {
+      loanType,
+      name,
+      address: clientAddress.value,
+      contact: clientContact.value,
+      comaker: clientComaker.value,
+      principal: calc.principal,
+      term: calc.months,
+      disbursementDate: disbursementDate.value,
+      firstPaymentDate: firstPaymentDate.value,
+      status: 'PENDING',
+      createdBy: currentUser.uid,
+      createdAt: serverTimestamp()
+    };
+
+    try {
+      await addDoc(collection(db, 'clients'), newClient);
+      alert('Loan application submitted for admin approval!');
+      btnClearForm.click();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  });
+
+  document.getElementById('clients-list').addEventListener('click', async (e) => {
+    const approveBtn = e.target.closest('.btn-approve-client');
+    const cancelBtn = e.target.closest('.btn-cancel-client');
+
+    if (approveBtn) {
+      const id = approveBtn.getAttribute('data-id');
+
+      const enteredPin = prompt("Enter Admin Secure PIN to approve loan application:", "");
+      if (enteredPin === null) return;
+
+      if (enteredPin !== "1234") {
+        alert("Incorrect Secure PIN. Loan approval restricted to Admin.");
+        return;
+      }
+
+      if (confirm('PIN verified. Approve and activate this loan application?')) {
+        try {
+          await updateDoc(doc(db, 'clients', id), { status: 'ACTIVE' });
+          alert('Loan approved and activated successfully!');
+        } catch (err) {
+          alert('Error approving loan: ' + err.message);
+        }
+      }
+    } else if (cancelBtn) {
+      const id = cancelBtn.getAttribute('data-id');
+
+      const enteredPin = prompt("Enter Admin Secure PIN to cancel loan application:", "");
+      if (enteredPin === null) return;
+
+      if (enteredPin !== "1234") {
+        alert("Incorrect Secure PIN. Action aborted.");
+        return;
+      }
+
+      if (confirm('PIN verified. Cancel this pending loan application?')) {
+        try {
+          await updateDoc(doc(db, 'clients', id), { status: 'CANCELLED' });
+          alert('Loan application cancelled.');
+        } catch (err) {
+          alert('Error cancelling loan: ' + err.message);
+        }
+      }
+    }
+  });
+
+  document.getElementById('repayment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const clientId = repayClientSelect.value;
+    const amount = parseFloat(document.getElementById('repay-amount').value);
+    const date = document.getElementById('repay-date').value;
+    const ref = document.getElementById('repay-ref').value;
+
+    if (!clientId || !amount || !date) return;
+
+    const enteredPin = prompt("Enter Admin Secure PIN to post payment:", "");
+    if (enteredPin === null) return;
+
+    if (enteredPin !== "1234") {
+      alert("Incorrect Secure PIN. Action aborted.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'repayments'), {
+        clientId,
+        amount,
+        date,
+        ref,
+        isVoid: false,
+        createdBy: currentUser.uid,
+        createdAt: serverTimestamp()
+      });
+      alert('Payment posted successfully!');
+      document.getElementById('repayment-form').reset();
+      document.getElementById('repay-date').value = today;
+      repayClientSelect.value = clientId;
+    } catch (err) {
+      alert('Error posting payment: ' + err.message);
+    }
+  });
+
+  recalculate();
+});
